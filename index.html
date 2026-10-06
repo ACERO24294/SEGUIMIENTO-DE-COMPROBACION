@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Comprobaciones - ACREIMEX</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            acreimex: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0088ff',
+              600: '#0066b2',
+              700: '#005393',
+              800: '#004b87',
+              900: '#003360',
+            },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .row-vencido { background-color: #dc3545 !important; color: #ffffff !important; }
+    .row-vencido td, .row-vencido span { color: #ffffff !important; }
+
+    .row-alert { background-color: #ffc107 !important; color: #000000 !important; }
+    .row-alert td, .row-alert span { color: #000000 !important; }
+
+    /* Fila Comprobada (Verde) */
+    .row-completed { background-color: #1e7e34 !important; color: #ffffff !important; }
+    .row-completed td, .row-completed span { color: #ffffff !important; }
+
+    input[readonly] {
+      background-color: #f1f5f9 !important;
+      color: #64748b !important;
+      cursor: not-allowed;
+    }
+
+    .destino-card {
+      transition: all 0.2s ease-in-out;
+      cursor: pointer;
+      user-select: none;
+    }
+    .destino-card:hover {
+      border-color: #0066b2;
+    }
+    .destino-card.active {
+      border-color: #0066b2 !important;
+      background-color: #f0f7ff !important;
+      box-shadow: 0 4px 12px -2px rgba(0, 102, 178, 0.25);
+    }
+    .destino-card.active .status-badge {
+      background-color: #0066b2 !important;
+      color: #ffffff !important;
+    }
+
+    .group-header {
+      background-color: #003360;
+      color: #ffffff;
+    }
+
+    .logo-hdr {
+      max-height: 48px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans p-4 sm:p-6">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- SECCIÓN SUPERIOR -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 rounded-xl shadow-sm border border-slate-200 items-center">
+      <div class="lg:col-span-3 w-full">
+        <button id="btnSync" class="w-full px-4 py-3 bg-acreimex-600 hover:bg-acreimex-800 text-white font-extrabold text-xs sm:text-sm rounded-lg transition tracking-wider flex items-center justify-center gap-2 shadow-md">
+          <i class="fa-solid fa-rotate"></i> SINCRONIZAR DATOS
+        </button>
+      </div>
+
+      <div class="lg:col-span-6 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label for="selectCoordinacion" class="block text-[11px] font-black text-acreimex-900 uppercase tracking-wide mb-1 truncate">
+            <i class="fa-solid fa-sitemap text-acreimex-600 mr-1"></i> COORDINACIÓN:
+          </label>
+          <select id="selectCoordinacion" class="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-acreimex-600 focus:outline-none">
+            <option value="TODOS">-- TODAS --</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="selectSucursal" class="block text-[11px] font-black text-acreimex-900 uppercase tracking-wide mb-1 truncate">
+            <i class="fa-solid fa-building-user text-acreimex-600 mr-1"></i> SUCURSAL:
+          </label>
+          <select id="selectSucursal" class="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-acreimex-600 focus:outline-none">
+            <option value="TODOS">-- TODAS --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="lg:col-span-3 w-full flex justify-center lg:justify-end items-center">
+        <img src="https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC" alt="Logo ACREIMEX" class="logo-hdr">
+      </div>
+    </div>
+
+    <!-- SECCIÓN DESTINOS DE CRÉDITO -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-3">
+        <h2 class="text-base font-black text-acreimex-900 uppercase tracking-wide flex items-center gap-2">
+          <i class="fa-solid fa-folder-tree text-acreimex-600"></i> AGRUPACIÓN POR DESTINOS DEL CRÉDITO
+        </h2>
+        
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <label for="selectSubDestino" class="text-xs font-black text-slate-700 whitespace-nowrap">
+            Filtrar Otro Destino:
+          </label>
+          <select id="selectSubDestino" class="text-xs font-extrabold bg-slate-50 border border-acreimex-600 rounded-lg p-2 text-acreimex-900 focus:ring-2 focus:ring-acreimex-600 focus:outline-none min-w-[200px]">
+            <option value="">-- Agregar destino específico --</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="subDestinosTagsContainer" class="hidden flex flex-wrap items-center gap-2 bg-acreimex-50 p-2.5 rounded-lg border border-acreimex-100">
+        <span class="text-[11px] font-bold text-acreimex-900 mr-1">Sub-destinos con carpeta propia:</span>
+        <div id="tagsList" class="flex flex-wrap gap-2"></div>
+        <button id="btnClearSubDestinos" class="text-[10px] font-bold text-red-600 hover:text-red-800 underline ml-auto">
+          Quitar todos los sub-destinos
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="destino-card bg-slate-50 border-2 border-slate-200 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3" data-destino="COMERCIAL" data-title-base="COMERCIAL">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-store text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">COMERCIAL</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-slate-200 text-slate-600 px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+
+        <div class="destino-card bg-slate-50 border-2 border-slate-200 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3" data-destino="PROMOCIÓN ESCOLAR" data-title-base="PROMOCIÓN ESCOLAR">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-graduation-cap text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">PROMOCIÓN ESCOLAR</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-slate-200 text-slate-600 px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+
+        <div class="destino-card bg-slate-50 border-2 border-slate-200 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3" data-destino="AGUA Y SANEAMIENTO" data-title-base="AGUA Y SANEAMIENTO">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-faucet-drip text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">AGUA Y SANEAMIENTO</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-slate-200 text-slate-600 px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+
+        <div id="cardOtros" class="destino-card bg-slate-50 border-2 border-slate-200 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3" data-destino="OTROS" data-title-base="OTROS DESTINOS">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-boxes-stacked text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">OTROS DESTINOS</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-slate-200 text-slate-600 px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER DE ALERTAS -->
+    <div id="alertBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-sm text-amber-900">
+      <div class="flex items-start space-x-3">
+        <i class="fa-solid fa-triangle-exclamation text-amber-600 text-2xl mt-0.5"></i>
+        <div>
+          <h3 class="font-black text-sm uppercase" id="alertTitle">¡Atención! Registros Requieren Comprobación</h3>
+          <p class="text-xs text-amber-800 mt-1">Los siguientes registros superaron los días de alerta o plazo máximo:</p>
+          <ul id="alertList" class="mt-2 text-xs font-bold space-y-1 list-disc list-inside max-h-36 overflow-y-auto pr-2"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA DE REGISTROS -->
+    <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+        <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+          <i class="fa-solid fa-table text-acreimex-600"></i> Registros Agrupados por Destino
+        </span>
+        <span id="recordCount" class="text-xs font-extrabold bg-acreimex-100 text-acreimex-900 px-3 py-1 rounded-full">
+          Cargando datos...
+        </span>
+      </div>
+
+      <div class="overflow-x-auto w-full">
+        <table id="dataTable" class="w-full text-left text-xs">
+          <thead class="bg-acreimex-900 text-white font-black uppercase tracking-wider border-b border-slate-300">
+            <tr>
+              <th class="py-3 px-3">CRÉDITO / GRUPO</th>
+              <th class="py-3 px-3">NOMBRE</th>
+              <th class="py-3 px-3">PRODUCTO</th>
+              <th class="py-3 px-3">DESEMBOLSADO</th>
+              <th class="py-3 px-3">ENTREGA</th>
+              <th class="py-3 px-3 text-center">DESTINO</th>
+              <th class="py-3 px-3">SUCURSAL</th>
+              <th class="py-3 px-3 text-center">DÍAS TRANSCURRIDOS</th>
+              <th class="py-3 px-3 text-center">ESTATUS ALERTA</th>
+              <th class="py-3 px-3 text-center">COMPROBADO</th>
+            </tr> 
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-200">
+            <tr>
+              <td colspan="10" class="text-center py-10 text-slate-400 font-bold">
+                <i class="fa-solid fa-spinner fa-spin text-3xl mb-2 text-acreimex-600 block"></i>
+                Cargando datos...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // COLOCA AQUÍ LA URL DE TU APPS SCRIPT DESPLEGADO
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxT3tsjYtlGY8J2z9PfNh2DYstqkmucP2vwkHCRM4OBz6pgCBDVwFaoMHjF9rxxaIme4w/exec";
+
+    let excelData = [];
+    let selectedDestinos = new Set();
+    let selectedSubDestinos = new Set();
+
+    const COMPROBADOS_KEY = "pwa_comprobaciones_confirmadas";
+    const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
+    const GID = "1166317926";
+
+    const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO"];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('selectCoordinacion').addEventListener('change', () => {
+        updateCardTitlesByCoordinacion();
+        populateSucursales(excelData);
+        selectedSubDestinos.clear();
+        renderSubDestinoTags();
+        populateSubDestinosSelect(excelData);
+        filterAndRender();
+      });
+
+      document.getElementById('selectSucursal').addEventListener('change', () => {
+        selectedSubDestinos.clear();
+        renderSubDestinoTags();
+        populateSubDestinosSelect(excelData);
+        filterAndRender();
+      });
+
+      document.getElementById('btnSync').addEventListener('click', loadDataWithComprobaciones);
+
+      document.getElementById('selectSubDestino').addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) {
+          selectedSubDestinos.add(val);
+          selectedDestinos.add('OTROS');
+          updateCardVisuals();
+          renderSubDestinoTags();
+          filterAndRender();
+          e.target.value = '';
+        }
+      });
+
+      document.getElementById('btnClearSubDestinos').addEventListener('click', () => {
+        selectedSubDestinos.clear();
+        renderSubDestinoTags();
+        filterAndRender();
+      });
+
+      document.querySelectorAll('.destino-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT') return;
+          const destino = card.getAttribute('data-destino');
+
+          if (selectedDestinos.has(destino)) {
+            selectedDestinos.delete(destino);
+            if (destino === 'OTROS') {
+              selectedSubDestinos.clear();
+              renderSubDestinoTags();
+            }
+          } else {
+            selectedDestinos.add(destino);
+          }
+
+          updateCardVisuals();
+          filterAndRender();
+        });
+      });
+
+      loadDataWithComprobaciones();
+    });
+
+    function getComprobados() {
+      try { return JSON.parse(localStorage.getItem(COMPROBADOS_KEY) || '{}'); } catch (e) { return {}; }
+    }
+
+    function saveComprobados(data) {
+      localStorage.setItem(COMPROBADOS_KEY, JSON.stringify(data));
+    }
+
+    // Sincronizar comprobados guardados en Apps Script
+    async function syncComprobadosDesdeSheets() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("TU_SCRIPT_ID_AQUI")) return;
+      try {
+        const res = await fetch(APPS_SCRIPT_URL);
+        const json = await res.json();
+        if (json && Array.isArray(json.comprobados)) {
+          const local = getComprobados();
+          json.comprobados.forEach(credito => {
+            local[credito] = true;
+          });
+          saveComprobados(local);
+        }
+      } catch (err) {
+        console.warn("No se pudieron cargar las comprobaciones desde Sheets:", err);
+      }
+    }
+
+    async function loadDataWithComprobaciones() {
+      await syncComprobadosDesdeSheets();
+      fetchGoogleSheetData();
+    }
+
+    function updateCardTitlesByCoordinacion() {
+      const coordVal = document.getElementById('selectCoordinacion').value;
+      const isEspecifico = coordVal && coordVal !== 'TODOS';
+
+      document.querySelectorAll('.destino-card').forEach(card => {
+        const titleBase = card.getAttribute('data-title-base');
+        const spanText = card.querySelector('.title-text');
+        if (spanText) {
+          spanText.textContent = isEspecifico ? `${titleBase} - ${coordVal}` : titleBase;
+        }
+      });
+    }
+
+    function updateCardVisuals() {
+      document.querySelectorAll('.destino-card').forEach(card => {
+        const destino = card.getAttribute('data-destino');
+        const badge = card.querySelector('.status-badge');
+
+        if (selectedDestinos.has(destino) || selectedDestinos.size === 0) {
+          card.classList.add('active');
+          if (badge) badge.textContent = 'MOSTRANDO';
+        } else {
+          card.classList.remove('active');
+          if (badge) badge.textContent = 'OCULTO';
+        }
+      });
+    }
+
+    function renderSubDestinoTags() {
+      const container = document.getElementById('subDestinosTagsContainer');
+      const tagsList = document.getElementById('tagsList');
+      tagsList.innerHTML = '';
+
+      if (selectedSubDestinos.size === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+
+      container.classList.remove('hidden');
+      selectedSubDestinos.forEach(sub => {
+        const tag = document.createElement('span');
+        tag.className = 'inline-flex items-center gap-1.5 bg-acreimex-600 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-sm';
+        tag.innerHTML = `
+          ${sub}
+          <button onclick="removeSubDestino('${sub}')" class="hover:text-red-200 transition font-black ml-1">✕</button>
+        `;
+        tagsList.appendChild(tag);
+      });
+    }
+
+    function removeSubDestino(subName) {
+      selectedSubDestinos.delete(subName);
+      renderSubDestinoTags();
+      filterAndRender();
+    }
+
+    function fetchGoogleSheetData() {
+      const tableBody = document.getElementById('tableBody');
+      const btnSync = document.getElementById('btnSync');
+      
+      btnSync.disabled = true;
+      btnSync.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> CARGANDO...`;
+
+      const existingScript = document.getElementById('gviz-jsonp-script');
+      if (existingScript) existingScript.remove();
+
+      window.handleGVizResponse = function(response) {
+        btnSync.disabled = false;
+        btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> SINCRONIZAR DATOS`;
+
+        if (!response || response.status === 'error') {
+          tableBody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-red-600 font-bold">Error al cargar Google Sheets.</td></tr>`;
+          return;
+        }
+
+        const cols = response.table.cols.map(c => c ? (c.label || c.id || '').trim().toUpperCase() : '');
+        const rows = response.table.rows;
+
+        excelData = rows.map(r => {
+          let rowObj = {};
+          if (r && r.c) {
+            r.c.forEach((cell, idx) => {
+              const colName = cols[idx] || `COL_${idx}`;
+              let val = '';
+              if (cell) {
+                if (cell.f !== undefined && cell.f !== null) {
+                  val = String(cell.f).trim();
+                } else if (cell.v !== undefined && cell.v !== null) {
+                  val = String(cell.v).trim();
+                }
+              }
+              rowObj[colName] = val;
+            });
+          }
+          return rowObj;
+        });
+
+        populateCoordinaciones(excelData);
+        populateSubDestinosSelect(excelData);
+        filterAndRender();
+      };
+
+      const jsonpUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:handleGVizResponse&gid=${GID}`;
+      const script = document.createElement('script');
+      script.id = 'gviz-jsonp-script';
+      script.src = jsonpUrl;
+      script.onerror = function() {
+        btnSync.disabled = false;
+        btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> SINCRONIZAR DATOS`;
+        tableBody.innerHTML = `<tr><td colspan="10" class="text-center py-10 text-red-600 font-bold">Error de conexión. Verifica la URL.</td></tr>`;
+      };
+      document.body.appendChild(script);
+    }
+
+    function toggleComprobado(credito, isChecked, rowDataEncoded) {
+      const comprobados = getComprobados();
+      const rowData = JSON.parse(decodeURIComponent(rowDataEncoded));
+
+      if (isChecked) {
+        comprobados[credito] = true;
+        // Guardar localmente
+        saveComprobados(comprobados);
+
+        // Enviar al Google Sheet (Pestaña SEGUIMIENTO)
+        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("TU_SCRIPT_ID_AQUI")) {
+          fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(rowData)
+          }).catch(err => console.error("Error al registrar comprobación:", err));
+        }
+      } else {
+        delete comprobados[credito];
+        saveComprobados(comprobados);
+      }
+
+      filterAndRender();
+    }
+
+    function parseExcelDate(dateVal) {
+      if (!dateVal) return null;
+      if (dateVal instanceof Date) return dateVal;
+      const strVal = String(dateVal).trim();
+      const gvizMatch = strVal.match(/Date\((\d+),(\d+),(\d+)\)/);
+      if (gvizMatch) return new Date(parseInt(gvizMatch[1], 10), parseInt(gvizMatch[2], 10), parseInt(gvizMatch[3], 10));
+      const dmyMatch = strVal.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+      if (dmyMatch) return new Date(parseInt(dmyMatch[3], 10), parseInt(dmyMatch[2], 10) - 1, parseInt(dmyMatch[1], 10));
+      const parsed = new Date(strVal);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function parseMonto(val) {
+      if (typeof val === 'number') return val;
+      if (!val) return 0;
+      const cleaned = String(val).replace(/[^0-9.-]+/g, "");
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatMoneda(val) {
+      const num = parseMonto(val);
+      if (num === 0 && !val) return '-';
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(num);
+    }
+
+    function getDestinoInfo(row) {
+      const rawDestino = String(
+        row.DESTINO_DEL_CREDITO || row.DESTINO || row.DESTINO_CREDITO || row.COL_31 || row.COL_30 || ''
+      ).trim().toUpperCase();
+
+      if (!rawDestino) return { original: 'N/A', grupo: 'OTROS', aviso: 25, maximo: 30 };
+
+      if (rawDestino.includes('PROMOCIÓN') || rawDestino.includes('PROMOCION')) {
+        return { original: rawDestino, grupo: 'PROMOCIÓN ESCOLAR', aviso: 10, maximo: 15 };
+      }
+
+      if (
+        rawDestino.includes('AGUA') || rawDestino.includes('SANEAMIENTO') || rawDestino.includes('BAÑO') || 
+        rawDestino.includes('DRENAJE') || rawDestino.includes('TINACO') || rawDestino.includes('TINACOS') || 
+        rawDestino.includes('LETRINAS') || rawDestino.includes('SEPTICAS') || rawDestino.includes('CISTERNA') || 
+        rawDestino.includes('BIODIGESTOR') || rawDestino.includes('MOTOBOMBA') || rawDestino.includes('POZO') || 
+        rawDestino.includes('PLUVIAL') || rawDestino.includes('PLOMERIA') || rawDestino.includes('TUBERIA')
+      ) {
+        return { original: rawDestino, grupo: 'AGUA Y SANEAMIENTO', aviso: 25, maximo: 30 };
+      }
+
+      if (
+        rawDestino.includes('MERCANCIA') || rawDestino.includes('MERCANCÍA') || 
+        rawDestino.includes('MERCANCIAS') || rawDestino.includes('MERCANCÍAS') || 
+        rawDestino.includes('EMPRENDER') || rawDestino.includes('NEGOCIO') || 
+        rawDestino.includes('COMERCIO') || rawDestino.includes('MATERIA PRIMA') || 
+        rawDestino.includes('ACTIVO FIJO') || rawDestino.includes('INVENTARIO')
+      ) {
+        return { original: rawDestino, grupo: 'COMERCIAL', aviso: 25, maximo: 30 };
+      }
+
+      return { original: rawDestino, grupo: 'OTROS', aviso: 25, maximo: 30 };
+    }
+
+    function populateCoordinaciones(data) {
+      const selectCoord = document.getElementById('selectCoordinacion');
+      const currentVal = selectCoord.value;
+      selectCoord.innerHTML = '<option value="TODOS">-- TODAS --</option>';
+
+      const coordinaciones = [...new Set(data.map(i => String(i.COORDINACION || i.COORDINACIÓN || '').trim()).filter(Boolean))].sort();
+      let solidariosExists = false;
+      coordinaciones.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        selectCoord.appendChild(opt);
+        if (c.toUpperCase().includes('SOLIDARIO')) solidariosExists = c;
+      });
+
+      if (currentVal !== 'TODOS' && coordinaciones.includes(currentVal)) {
+        selectCoord.value = currentVal;
+      } else if (solidariosExists) {
+        selectCoord.value = solidariosExists;
+      }
+
+      updateCardTitlesByCoordinacion();
+      populateSucursales(data);
+      populateSubDestinosSelect(data);
+    }
+
+    function populateSucursales(data) {
+      const selectCoordVal = document.getElementById('selectCoordinacion').value;
+      const selectSucursal = document.getElementById('selectSucursal');
+      const currentSucursal = selectSucursal.value;
+      selectSucursal.innerHTML = '<option value="TODOS">-- TODAS --</option>';
+
+      let filteredData = data;
+      if (selectCoordVal !== 'TODOS') {
+        filteredData = data.filter(row => String(row.COORDINACION || row.COORDINACIÓN || '').trim() === selectCoordVal);
+      }
+
+      const sucursales = [...new Set(filteredData.map(i => String(i.SUCURSAL || '').trim()).filter(Boolean))].sort();
+      sucursales.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = `SUCURSAL ${s}`;
+        selectSucursal.appendChild(opt);
+      });
+
+      if (sucursales.includes(currentSucursal)) {
+        selectSucursal.value = currentSucursal;
+      } else {
+        selectSucursal.value = 'TODOS';
+      }
+    }
+
+    function populateSubDestinosSelect(data) {
+      const selectSub = document.getElementById('selectSubDestino');
+      const selectedCoord = document.getElementById('selectCoordinacion').value;
+      const selectedSucursal = document.getElementById('selectSucursal').value;
+      
+      selectSub.innerHTML = '<option value="">-- Agregar destino específico --</option>';
+
+      let filteredData = data;
+      if (selectedCoord !== 'TODOS') {
+        filteredData = filteredData.filter(row => String(row.COORDINACION || row.COORDINACIÓN || '').trim() === selectedCoord);
+      }
+      if (selectedSucursal !== 'TODOS') {
+        filteredData = filteredData.filter(row => String(row.SUCURSAL || '').trim() === selectedSucursal);
+      }
+
+      const otrosDestinosUnicos = new Set();
+      filteredData.forEach(row => {
+        const info = getDestinoInfo(row);
+        if (info.grupo === 'OTROS' && info.original && info.original !== 'N/A') {
+          otrosDestinosUnicos.add(info.original);
+        }
+      });
+
+      Array.from(otrosDestinosUnicos).sort().forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub;
+        opt.textContent = sub;
+        selectSub.appendChild(opt);
+      });
+    }
+
+    function filterAndRender() {
+      const selectedCoord = document.getElementById('selectCoordinacion').value;
+      const selectedSucursal = document.getElementById('selectSucursal').value;
+      const tableBody = document.getElementById('tableBody');
+      const alertBanner = document.getElementById('alertBanner');
+      const alertList = document.getElementById('alertList');
+      const recordCount = document.getElementById('recordCount');
+      
+      const comprobados = getComprobados();
+      tableBody.innerHTML = '';
+      let pendingAlerts = [];
+      let totalVisible = 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const groupedData = {
+        "COMERCIAL": [],
+        "PROMOCIÓN ESCOLAR": [],
+        "AGUA Y SANEAMIENTO": [],
+        "OTROS": []
+      };
+
+      selectedSubDestinos.forEach(sub => {
+        if (!groupedData[sub]) groupedData[sub] = [];
+      });
+
+      excelData.forEach((row, index) => {
+        const rawCredito = row.CREDITO || row.NOMBRE_GRUPO || row.GRUPO || '';
+        const credito = rawCredito !== '' ? String(rawCredito).trim() : `Reg-${index + 1}`;
+
+        const nombre = row.NOMBRE || row.CLIENTE || '-';
+        const producto = row.PRODUCTO || '-';
+        const desembolsadoVal = row.DESEMBOLSADO || row.MONTO || '';
+        const desembolsadoMonto = parseMonto(desembolsadoVal);
+        const desembolsado = formatMoneda(desembolsadoVal);
+        const entregaRaw = row.ENTREGA || row.FECHA_ENTREGA || row.FECHA || '';
+        const destinoInfo = getDestinoInfo(row);
+        const coordinacion = String(row.COORDINACION || row.COORDINACIÓN || '').trim();
+        const sucursal = String(row.SUCURSAL || '').trim();
+
+        if (selectedCoord !== 'TODOS' && coordinacion !== selectedCoord) return;
+        if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
+
+        const fechaEntrega = parseExcelDate(entregaRaw);
+        let diasTranscurridos = null;
+
+        if (fechaEntrega) {
+          fechaEntrega.setHours(0, 0, 0, 0);
+          const diffTime = today - fechaEntrega;
+          diasTranscurridos = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
+        if (esCoordinacionSolidarios && destinoInfo.grupo === 'COMERCIAL') {
+          const cumpleMonto = desembolsadoMonto >= 50000;
+          const cumpleAntiguedad = diasTranscurridos !== null && diasTranscurridos <= 365;
+          if (!cumpleMonto || !cumpleAntiguedad) return;
+        }
+
+        if (selectedDestinos.size > 0 && !selectedDestinos.has(destinoInfo.grupo)) return;
+        if (destinoInfo.grupo === 'OTROS' && selectedSubDestinos.size > 0) {
+          if (!selectedSubDestinos.has(destinoInfo.original)) return;
+        }
+
+        // Evaluar comprobación usando el número de CRÉDITO como clave principal
+        const isComprobado = !!comprobados[credito];
+
+        const esAlertaAviso = diasTranscurridos !== null && diasTranscurridos >= destinoInfo.aviso && !isComprobado;
+        const esPlazoVencido = diasTranscurridos !== null && diasTranscurridos >= destinoInfo.maximo && !isComprobado;
+
+        if (esAlertaAviso || esPlazoVencido) {
+          pendingAlerts.push({ credito, nombre, dias: diasTranscurridos, sucursal, destino: destinoInfo.original });
+        }
+
+        let targetGrupo = destinoInfo.grupo;
+        if (destinoInfo.grupo === 'OTROS' && selectedSubDestinos.has(destinoInfo.original)) {
+          targetGrupo = destinoInfo.original;
+        }
+
+        if (!groupedData[targetGrupo]) groupedData[targetGrupo] = [];
+
+        groupedData[targetGrupo].push({
+          credito,
+          nombre,
+          producto,
+          desembolsado,
+          entregaRaw,
+          destinoInfo,
+          sucursal,
+          diasTranscurridos,
+          isComprobado,
+          esAlertaAviso,
+          esPlazoVencido
+        });
+
+        totalVisible++;
+      });
+
+      const carpetasAOrden = [...GRUPOS_BASE, ...Array.from(selectedSubDestinos), "OTROS"];
+
+      carpetasAOrden.forEach(grupo => {
+        const items = groupedData[grupo];
+        if (items && items.length > 0) {
+
+          const headerTr = document.createElement('tr');
+          headerTr.className = 'group-header font-black uppercase text-sm border-y-2 border-acreimex-900';
+          const grupoNombreVisual = selectedCoord !== 'TODOS' ? `${grupo} - ${selectedCoord}` : grupo;
+
+          headerTr.innerHTML = `
+            <td colspan="10" class="py-3 px-4 bg-acreimex-900 text-white shadow-inner">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-folder-open text-amber-400 text-base"></i>
+                <span class="tracking-wide">${grupoNombreVisual}</span>
+                <span class="ml-2 text-xs font-normal bg-acreimex-800 text-acreimex-100 px-2 py-0.5 rounded-full border border-acreimex-700">
+                  ${items.length} registro(s)
+                </span>
+              </div>
+            </td>
+          `;
+          tableBody.appendChild(headerTr);
+
+          items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.className = "transition-colors font-bold";
+
+            if (item.isComprobado) tr.classList.add('row-completed');
+            else if (item.esPlazoVencido) tr.classList.add('row-vencido');
+            else if (item.esAlertaAviso) tr.classList.add('row-alert');
+
+            let badgeHtml = '';
+            if (item.isComprobado) {
+              badgeHtml = `<span class="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-check"></i> Comprobado</span>`;
+            } else if (item.esPlazoVencido) {
+              badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-xmark"></i> Plazo Vencido</span>`;
+            } else if (item.esAlertaAviso) {
+              badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-black text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-bell"></i> Revisión Requerida</span>`;
+            } else {
+              badgeHtml = `<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">En Tiempo</span>`;
+            }
+
+            const payloadData = encodeURIComponent(JSON.stringify({
+              credito: item.credito,
+              nombre: item.nombre,
+              producto: item.producto,
+              desembolsado: item.desembolsado,
+              entrega: item.entregaRaw,
+              destino: item.destinoInfo.original,
+              sucursal: item.sucursal,
+              dias: item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'
+            }));
+
+            tr.innerHTML = `
+              <td class="py-3 px-3 font-mono">${item.credito}</td>
+              <td class="py-3 px-3">${item.nombre}</td>
+              <td class="py-3 px-3">${item.producto}</td>
+              <td class="py-3 px-3 font-mono font-bold">${item.desembolsado}</td>
+              <td class="py-3 px-3">${item.entregaRaw || 'N/A'}</td>
+              <td class="py-3 px-3 text-center">${item.destinoInfo.original}</td>
+              <td class="py-3 px-3">${item.sucursal || 'N/A'}</td>
+              <td class="py-3 px-3 text-center font-black">
+                ${item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'}
+              </td>
+              <td class="py-3 px-3 text-center">${badgeHtml}</td>
+              <td class="py-3 px-3 text-center">
+                <input type="checkbox" ${item.isComprobado ? 'checked' : ''} 
+                  onchange="toggleComprobado('${item.credito}', this.checked, '${payloadData}')"
+                  class="w-5 h-5 text-acreimex-600 border-slate-300 rounded focus:ring-acreimex-600 cursor-pointer accent-acreimex-600">
+              </td>
+            `;
+
+            tableBody.appendChild(tr);
+          });
+        }
+      });
+
+      recordCount.textContent = `${totalVisible} REGISTRO(S)`;
+
+      if (pendingAlerts.length > 0) {
+        alertBanner.classList.remove('hidden');
+        alertList.innerHTML = '';
+        pendingAlerts.forEach(item => {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${item.nombre}</strong> (${item.credito}) - Sucursal ${item.sucursal} - Destino: ${item.destino} - <span class="underline">${item.dias} días transcurridos</span>`;
+          alertList.appendChild(li);
+        });
+      } else {
+        alertBanner.classList.add('hidden');
+      }
+
+      if (totalVisible === 0 && excelData.length > 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="10" class="text-center py-8 text-slate-400 font-bold">
+              No se encontraron registros que coincidan con la selección aplicada.
+            </td>
+          </tr>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
