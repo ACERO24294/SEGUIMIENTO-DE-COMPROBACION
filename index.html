@@ -107,7 +107,7 @@
     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-3">
         <h2 class="text-base font-black text-acreimex-900 uppercase tracking-wide flex items-center gap-2">
-          <i class="fa-solid fa-folder-tree text-acreimex-600"></i> AGRUPACIÓN POR DESTINOS DEL CRÉDITO
+          <i class="fa-solid fa-folder-tree text-acreimex-600"></i> AGRUPACIÓN POR DESTINOS DEL CRÉDITO (SOLIDARIOS)
         </h2>
         
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -128,7 +128,7 @@
         </button>
       </div>
 
-      <!-- TARJETAS DE DESTINO -->
+      <!-- TARJETAS DE DESTINO (INCLUYENDO OTROS DE SOLIDARIOS) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="COMERCIAL">
           <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
@@ -157,7 +157,7 @@
         <div id="cardOtros" class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="OTROS">
           <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
             <i class="fa-solid fa-boxes-stacked text-acreimex-600 mt-0.5 shrink-0"></i> 
-            <span class="title-text">OTROS DESTINOS / OTRAS COORD.</span>
+            <span class="title-text">OTROS DESTINOS (SOLIDARIOS)</span>
           </h3>
           <span class="status-badge text-[9px] font-black bg-acreimex-600 text-white px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
         </div>
@@ -180,7 +180,7 @@
     <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
         <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
-          <i class="fa-solid fa-table text-acreimex-600"></i> Registros Agrupados por Destino
+          <i class="fa-solid fa-table text-acreimex-600"></i> Registros de Coordinación Solidarios
         </span>
         <span id="recordCount" class="text-xs font-extrabold bg-acreimex-100 text-acreimex-900 px-3 py-1 rounded-full">
           Cargando datos...
@@ -215,7 +215,7 @@
         </table>
       </div>
 
-      <!-- BOTÓN DE PAGINACIÓN / CARGAR MÁS DE 5,000 EN 5,000 -->
+      <!-- BOTÓN DE PAGINACIÓN -->
       <div id="loadMoreContainer" class="hidden p-4 bg-slate-50 border-t border-slate-200 text-center">
         <button id="btnLoadMore" class="px-6 py-2.5 bg-acreimex-600 hover:bg-acreimex-800 text-white font-black text-xs rounded-lg transition shadow">
           CARGAR 5,000 REGISTROS MÁS (Mostrando <span id="currentShownCount">0</span> de <span id="totalFilteredCount">0</span>)
@@ -230,7 +230,7 @@
 
     let excelData = [];
     let filteredItemsGlobal = []; 
-    let visibleLimit = 5000;      // <--- CARGA INICIAL DE 1,000 EN 1,000
+    let visibleLimit = 5000;      
     let selectedSubDestinos = new Set();
 
     const COMPROBADOS_KEY = "pwa_comprobaciones_confirmadas";
@@ -267,7 +267,7 @@
       });
 
       document.getElementById('btnLoadMore').addEventListener('click', () => {
-        visibleLimit += 5000; // <--- INCREMENTA DE 1,000 EN 1,000
+        visibleLimit += 5000; 
         renderTableRows();
       });
 
@@ -529,11 +529,12 @@
 
       const otrosDestinosMap = new Map();
       filteredData.forEach(row => {
-        const info = getDestinoInfo(row);
         const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim().toUpperCase();
         const esSolidarios = coordinacion.includes('SOLIDARIO');
+        if (!esSolidarios) return; // Solo considerar solidarios para los sub-destinos
 
-        if ((info.grupo === 'OTROS' || !esSolidarios) && info.original && info.original !== 'N/A') {
+        const info = getDestinoInfo(row);
+        if (info.grupo === 'OTROS' && info.original && info.original !== 'N/A') {
           if (!otrosDestinosMap.has(info.original)) {
             otrosDestinosMap.set(info.original, info.original);
           }
@@ -572,6 +573,15 @@
       });
 
       excelData.forEach((row, index) => {
+        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim();
+        const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
+
+        // RESTRICCIÓN: SE DESCARSTAN COMPLETAMENTE REGISTROS QUE NO SEAN DE SOLIDARIOS
+        if (!esCoordinacionSolidarios) return;
+
+        const sucursal = String(row.SUCURSAL || '').trim();
+        if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
+
         const rawCredito = row.CREDITO || row["CRÉDITO"] || row.NOMBRE_GRUPO || row.GRUPO || '';
         const credito = rawCredito !== '' ? String(rawCredito).trim() : `Reg-${index + 1}`;
 
@@ -584,12 +594,6 @@
         const ingresoRaw = row.COL_4 || row["FECHA DE INGREGO"] || row["FECHA DE INGRESO"] || row.INGRESO || row.FECHA_INGRESO || row.FECHA || '';
 
         const destinoInfo = getDestinoInfo(row);
-        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim();
-        const sucursal = String(row.SUCURSAL || '').trim();
-
-        if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
-
-        const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
 
         const fechaIngreso = parseExcelDate(ingresoRaw);
         let diasIngreso = null;
@@ -600,7 +604,7 @@
 
         const diasTranscurridos = diasIngreso;
 
-        if (destinoInfo.grupo === 'COMERCIAL' && esCoordinacionSolidarios) {
+        if (destinoInfo.grupo === 'COMERCIAL') {
           const cumpleMonto = desembolsadoMonto >= 50000;
           const cumpleAntiguedad = diasIngreso !== null && diasIngreso >= 0 && diasIngreso <= 365;
           if (!cumpleMonto || !cumpleAntiguedad) return;
@@ -617,13 +621,13 @@
         }
 
         let targetGrupo = 'OTROS';
-        if (esCoordinacionSolidarios && GRUPOS_BASE.includes(destinoInfo.grupo)) {
+        if (GRUPOS_BASE.includes(destinoInfo.grupo)) {
           targetGrupo = destinoInfo.grupo;
         } else if (selectedSubDestinos.has(destinoInfo.original)) {
           targetGrupo = destinoInfo.original;
         }
 
-        if (!esCoordinacionSolidarios && selectedSubDestinos.size > 0 && !selectedSubDestinos.has(destinoInfo.original)) {
+        if (selectedSubDestinos.size > 0 && targetGrupo === 'OTROS' && !selectedSubDestinos.has(destinoInfo.original)) {
           return;
         }
 
@@ -635,7 +639,7 @@
         });
       });
 
-      const carpetasAOrden = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO", ...Array.from(selectedSubDestinos), "OTROS"];
+      const carpetasAOrden = [...GRUPOS_BASE, ...Array.from(selectedSubDestinos), "OTROS"];
 
       carpetasAOrden.forEach(grupo => {
         const items = groupedData[grupo];
@@ -678,7 +682,7 @@
         tableBody.innerHTML = `
           <tr>
             <td colspan="11" class="text-center py-8 text-slate-400 font-bold">
-              No se encontraron registros que coincidan con la selección aplicada.
+              No se encontraron registros de Solidarios que coincidan con la selección aplicada.
             </td>
           </tr>
         `;
