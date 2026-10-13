@@ -47,7 +47,6 @@
     .row-alert { background-color: #ffc107 !important; color: #000000 !important; }
     .row-alert td, .row-alert span { color: #000000 !important; }
 
-    /* Fila Comprobada (Verde) */
     .row-completed { background-color: #1e7e34 !important; color: #ffffff !important; }
     .row-completed td, .row-completed span { color: #ffffff !important; }
 
@@ -215,6 +214,13 @@
           </tbody>
         </table>
       </div>
+
+      <!-- BOTÓN DE PAGINACIÓN / CARGAR MÁS DE 5,000 EN 5,000 -->
+      <div id="loadMoreContainer" class="hidden p-4 bg-slate-50 border-t border-slate-200 text-center">
+        <button id="btnLoadMore" class="px-6 py-2.5 bg-acreimex-600 hover:bg-acreimex-800 text-white font-black text-xs rounded-lg transition shadow">
+          CARGAR 5,000 REGISTROS MÁS (Mostrando <span id="currentShownCount">0</span> de <span id="totalFilteredCount">0</span>)
+        </button>
+      </div>
     </section>
 
   </div>
@@ -223,17 +229,19 @@
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxT3tsjYtlGY8J2z9PfNh2DYstqkmucP2vwkHCRM4OBz6pgCBDVwFaoMHjF9rxxaIme4w/exec";
 
     let excelData = [];
+    let filteredItemsGlobal = []; 
+    let visibleLimit = 5000;      // <--- CARGA INICIAL DE 1,000 EN 1,000
     let selectedSubDestinos = new Set();
 
     const COMPROBADOS_KEY = "pwa_comprobaciones_confirmadas";
     const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
     const GID = "1166317926";
 
-    // ORDEN DE CARPETAS BASE: COMERCIAL SIEMPRE PRIMERO
     const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO"];
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('selectSucursal').addEventListener('change', () => {
+        visibleLimit = 5000; 
         populateSubDestinosSelect(excelData);
         filterAndRender();
       });
@@ -243,6 +251,7 @@
       document.getElementById('selectSubDestino').addEventListener('change', (e) => {
         const val = e.target.value;
         if (val) {
+          visibleLimit = 5000;
           selectedSubDestinos.add(val);
           renderSubDestinoTags();
           filterAndRender();
@@ -251,9 +260,15 @@
       });
 
       document.getElementById('btnClearSubDestinos').addEventListener('click', () => {
+        visibleLimit = 5000;
         selectedSubDestinos.clear();
         renderSubDestinoTags();
         filterAndRender();
+      });
+
+      document.getElementById('btnLoadMore').addEventListener('click', () => {
+        visibleLimit += 5000; // <--- INCREMENTA DE 1,000 EN 1,000
+        renderTableRows();
       });
 
       loadDataWithComprobaciones();
@@ -274,9 +289,7 @@
         const json = await res.json();
         if (json && Array.isArray(json.comprobados)) {
           const local = getComprobados();
-          json.comprobados.forEach(credito => {
-            local[credito] = true;
-          });
+          json.comprobados.forEach(credito => { local[credito] = true; });
           saveComprobados(local);
         }
       } catch (err) {
@@ -312,6 +325,7 @@
     }
 
     function removeSubDestino(subName) {
+      visibleLimit = 5000;
       selectedSubDestinos.delete(subName);
       renderSubDestinoTags();
       filterAndRender();
@@ -361,6 +375,7 @@
 
         populateSucursales(excelData);
         populateSubDestinosSelect(excelData);
+        visibleLimit = 5000;
         filterAndRender();
       };
 
@@ -400,13 +415,11 @@
       filterAndRender();
     }
 
-    // PARSEO INTELIGENTE DÍA/MES/AÑO O MES/DÍA/AÑO
     function parseExcelDate(dateVal) {
       if (!dateVal) return null;
       if (dateVal instanceof Date) return dateVal;
       
       const strVal = String(dateVal).trim();
-
       const gvizMatch = strVal.match(/Date\((\d+),(\d+),(\d+)\)/);
       if (gvizMatch) {
         return new Date(parseInt(gvizMatch[1], 10), parseInt(gvizMatch[2], 10), parseInt(gvizMatch[3], 10));
@@ -417,19 +430,11 @@
         let p1 = parseInt(match[1], 10);
         let p2 = parseInt(match[2], 10);
         const anio = parseInt(match[3], 10);
-
         let dia, mes;
 
-        if (p2 > 12) {
-          mes = p1 - 1;
-          dia = p2;
-        } else if (p1 > 12) {
-          dia = p1;
-          mes = p2 - 1;
-        } else {
-          dia = p1;
-          mes = p2 - 1;
-        }
+        if (p2 > 12) { mes = p1 - 1; dia = p2; }
+        else if (p1 > 12) { dia = p1; mes = p2 - 1; }
+        else { dia = p1; mes = p2 - 1; }
 
         return new Date(anio, mes, dia);
       }
@@ -464,13 +469,11 @@
 
       if (!rawDestino) return { original: 'N/A', grupo: 'OTROS', aviso: 25, maximo: 30 };
 
-      // PROMOCIÓN ESCOLAR: Requiere que contenga la palabra PROMOCIÓN
       if (rawDestino.includes('PROMOCIÓN') || rawDestino.includes('PROMOCION')) {
         return { original: rawDestino, grupo: 'PROMOCIÓN ESCOLAR', aviso: 10, maximo: 15 };
       }
 
-      // AGUA Y SANEAMIENTO 
- if (
+      if (
         rawDestino.includes('AGUA') || rawDestino.includes('SANEAMIENTO') || rawDestino.includes('BAÑO') || 
         rawDestino.includes('DRENAJE') || rawDestino.includes('TINACO') || rawDestino.includes('TINACOS') || 
         rawDestino.includes('LETRINAS') || rawDestino.includes('SEPTICAS') || rawDestino.includes('CISTERNA') || 
@@ -480,7 +483,6 @@
         return { original: rawDestino, grupo: 'AGUA Y SANEAMIENTO', aviso: 25, maximo: 30 };
       }
 
-      // COMERCIAL
       if (
         rawDestino.includes('MERCANCIA') || rawDestino.includes('MERCANCÍA') || 
         rawDestino.includes('MERCANCIAS') || rawDestino.includes('MERCANCÍAS') || 
@@ -526,7 +528,6 @@
       }
 
       const otrosDestinosMap = new Map();
-
       filteredData.forEach(row => {
         const info = getDestinoInfo(row);
         const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim().toUpperCase();
@@ -549,15 +550,12 @@
 
     function filterAndRender() {
       const selectedSucursal = document.getElementById('selectSucursal').value;
-      const tableBody = document.getElementById('tableBody');
       const alertBanner = document.getElementById('alertBanner');
       const alertList = document.getElementById('alertList');
-      const recordCount = document.getElementById('recordCount');
       
       const comprobados = getComprobados();
-      tableBody.innerHTML = '';
       let pendingAlerts = [];
-      let totalVisible = 0;
+      filteredItemsGlobal = [];
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -583,19 +581,16 @@
         const desembolsadoMonto = parseMonto(desembolsadoVal);
         const desembolsado = formatMoneda(desembolsadoVal);
         
-        // Fecha de ingreso (Columna E / COL_4)
         const ingresoRaw = row.COL_4 || row["FECHA DE INGREGO"] || row["FECHA DE INGRESO"] || row.INGRESO || row.FECHA_INGRESO || row.FECHA || '';
 
         const destinoInfo = getDestinoInfo(row);
         const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim();
         const sucursal = String(row.SUCURSAL || '').trim();
 
-        // Filtro por Sucursal seleccionada
         if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
 
         const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
 
-        // Cálculo de días transcurridos
         const fechaIngreso = parseExcelDate(ingresoRaw);
         let diasIngreso = null;
         if (fechaIngreso) {
@@ -605,11 +600,10 @@
 
         const diasTranscurridos = diasIngreso;
 
-        // FILTRO ESTRICTO COMERCIAL (MERCANCÍAS - SOLIDARIOS): Monto >= 50,000 y Antigüedad <= 365 días
         if (destinoInfo.grupo === 'COMERCIAL' && esCoordinacionSolidarios) {
           const cumpleMonto = desembolsadoMonto >= 50000;
           const cumpleAntiguedad = diasIngreso !== null && diasIngreso >= 0 && diasIngreso <= 365;
-          if (!cumpleMonto || !cumpleAntiguedad) return; // Si no cumple, se descarta para esta categoría
+          if (!cumpleMonto || !cumpleAntiguedad) return;
         }
 
         const isComprobado = !!comprobados[credito];
@@ -618,17 +612,11 @@
 
         if (esAlertaAviso || esPlazoVencido) {
           pendingAlerts.push({ 
-            credito, 
-            nombre, 
-            dias: diasTranscurridos, 
-            sucursal, 
-            destino: destinoInfo.original, 
-            coordinacion 
+            credito, nombre, dias: diasTranscurridos, sucursal, destino: destinoInfo.original, coordinacion 
           });
         }
 
         let targetGrupo = 'OTROS';
-
         if (esCoordinacionSolidarios && GRUPOS_BASE.includes(destinoInfo.grupo)) {
           targetGrupo = destinoInfo.grupo;
         } else if (selectedSubDestinos.has(destinoInfo.original)) {
@@ -642,105 +630,24 @@
         if (!groupedData[targetGrupo]) groupedData[targetGrupo] = [];
 
         groupedData[targetGrupo].push({
-          credito,
-          nombre,
-          producto,
-          desembolsado,
-          ingresoRaw,
-          destinoInfo,
-          sucursal,
-          coordinacion: coordinacion || 'N/A',
-          diasTranscurridos,
-          isComprobado,
-          esAlertaAviso,
-          esPlazoVencido
+          credito, nombre, producto, desembolsado, ingresoRaw, destinoInfo, sucursal,
+          coordinacion: coordinacion || 'N/A', diasTranscurridos, isComprobado, esAlertaAviso, esPlazoVencido
         });
-
-        totalVisible++;
       });
 
-      // ORDEN ESTRICTO: COMERCIAL SIEMPRE PRIMERO
       const carpetasAOrden = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO", ...Array.from(selectedSubDestinos), "OTROS"];
 
       carpetasAOrden.forEach(grupo => {
         const items = groupedData[grupo];
         if (items && items.length > 0) {
-
-          const headerTr = document.createElement('tr');
-          headerTr.className = 'group-header font-black uppercase text-sm border-y-2 border-acreimex-900';
-
-          const tituloCarpeta = GRUPOS_BASE.includes(grupo) ? `${grupo} (SOLIDARIOS)` : grupo;
-
-          headerTr.innerHTML = `
-            <td colspan="11" class="py-3 px-4 bg-acreimex-900 text-white shadow-inner">
-              <div class="flex items-center gap-2">
-                <i class="fa-solid fa-folder-open text-amber-400 text-base"></i>
-                <span class="tracking-wide">${tituloCarpeta}</span>
-                <span class="ml-2 text-xs font-normal bg-acreimex-800 text-acreimex-100 px-2 py-0.5 rounded-full border border-acreimex-700">
-                  ${items.length} registro(s)
-                </span>
-              </div>
-            </td>
-          `;
-          tableBody.appendChild(headerTr);
-
+          filteredItemsGlobal.push({ type: 'header', grupo, count: items.length });
           items.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.className = "transition-colors font-bold";
-
-            if (item.isComprobado) tr.classList.add('row-completed');
-            else if (item.esPlazoVencido) tr.classList.add('row-vencido');
-            else if (item.esAlertaAviso) tr.classList.add('row-alert');
-
-            let badgeHtml = '';
-            if (item.isComprobado) {
-              badgeHtml = `<span class="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-check"></i> Comprobado</span>`;
-            } else if (item.esPlazoVencido) {
-              badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-xmark"></i> Plazo Vencido</span>`;
-            } else if (item.esAlertaAviso) {
-              badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-black text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-bell"></i> Revisión Requerida</span>`;
-            } else {
-              badgeHtml = `<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">En Tiempo</span>`;
-            }
-
-            const payloadData = encodeURIComponent(JSON.stringify({
-              credito: item.credito,
-              nombre: item.nombre,
-              producto: item.producto,
-              desembolsado: item.desembolsado,
-              ingreso: item.ingresoRaw,
-              destino: item.destinoInfo.original,
-              sucursal: item.sucursal,
-              coordinacion: item.coordinacion,
-              dias: item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'
-            }));
-
-            tr.innerHTML = `
-              <td class="py-3 px-3 font-mono">${item.credito}</td>
-              <td class="py-3 px-3">${item.nombre}</td>
-              <td class="py-3 px-3">${item.producto}</td>
-              <td class="py-3 px-3 font-mono font-bold">${item.desembolsado}</td>
-              <td class="py-3 px-3">${item.ingresoRaw || 'N/A'}</td>
-              <td class="py-3 px-3 text-center">${item.destinoInfo.original}</td>
-              <td class="py-3 px-3">${item.sucursal || 'N/A'}</td>
-              <td class="py-3 px-3 font-semibold text-acreimex-900">${item.coordinacion}</td>
-              <td class="py-3 px-3 text-center font-black">
-                ${item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'}
-              </td>
-              <td class="py-3 px-3 text-center">${badgeHtml}</td>
-              <td class="py-3 px-3 text-center">
-                <input type="checkbox" ${item.isComprobado ? 'checked' : ''} 
-                  onchange="toggleComprobado('${item.credito}', this.checked, '${payloadData}')"
-                  class="w-5 h-5 text-acreimex-600 border-slate-300 rounded focus:ring-acreimex-600 cursor-pointer accent-acreimex-600">
-              </td>
-            `;
-
-            tableBody.appendChild(tr);
+            filteredItemsGlobal.push({ type: 'item', data: item });
           });
         }
       });
 
-      recordCount.textContent = `${totalVisible} REGISTRO(S)`;
+      renderTableRows();
 
       if (pendingAlerts.length > 0) {
         alertBanner.classList.remove('hidden');
@@ -753,8 +660,21 @@
       } else {
         alertBanner.classList.add('hidden');
       }
+    }
 
-      if (totalVisible === 0 && excelData.length > 0) {
+    function renderTableRows() {
+      const tableBody = document.getElementById('tableBody');
+      const recordCount = document.getElementById('recordCount');
+      const loadMoreContainer = document.getElementById('loadMoreContainer');
+      const currentShownCount = document.getElementById('currentShownCount');
+      const totalFilteredCount = document.getElementById('totalFilteredCount');
+
+      tableBody.innerHTML = '';
+
+      let totalItemsOnly = filteredItemsGlobal.filter(i => i.type === 'item').length;
+      totalFilteredCount.textContent = totalItemsOnly;
+
+      if (totalItemsOnly === 0) {
         tableBody.innerHTML = `
           <tr>
             <td colspan="11" class="text-center py-8 text-slate-400 font-bold">
@@ -762,6 +682,110 @@
             </td>
           </tr>
         `;
+        recordCount.textContent = `0 REGISTROS`;
+        loadMoreContainer.classList.add('hidden');
+        return;
+      }
+
+      let renderedItemsCount = 0;
+      let currentHeaderHtml = null;
+
+      for (let i = 0; i < filteredItemsGlobal.length; i++) {
+        const element = filteredItemsGlobal[i];
+
+        if (element.type === 'header') {
+          currentHeaderHtml = element;
+          continue;
+        }
+
+        if (element.type === 'item') {
+          if (renderedItemsCount >= visibleLimit) {
+            break;
+          }
+
+          if (currentHeaderHtml) {
+            const headerTr = document.createElement('tr');
+            headerTr.className = 'group-header font-black uppercase text-sm border-y-2 border-acreimex-900';
+            const tituloCarpeta = GRUPOS_BASE.includes(currentHeaderHtml.grupo) ? `${currentHeaderHtml.grupo} (SOLIDARIOS)` : currentHeaderHtml.grupo;
+
+            headerTr.innerHTML = `
+              <td colspan="11" class="py-3 px-4 bg-acreimex-900 text-white shadow-inner">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-folder-open text-amber-400 text-base"></i>
+                  <span class="tracking-wide">${tituloCarpeta}</span>
+                  <span class="ml-2 text-xs font-normal bg-acreimex-800 text-acreimex-100 px-2 py-0.5 rounded-full border border-acreimex-700">
+                    ${currentHeaderHtml.count} registro(s)
+                  </span>
+                </div>
+              </td>
+            `;
+            tableBody.appendChild(headerTr);
+            currentHeaderHtml = null;
+          }
+
+          const item = element.data;
+          const tr = document.createElement('tr');
+          tr.className = "transition-colors font-bold";
+
+          if (item.isComprobado) tr.classList.add('row-completed');
+          else if (item.esPlazoVencido) tr.classList.add('row-vencido');
+          else if (item.esAlertaAviso) tr.classList.add('row-alert');
+
+          let badgeHtml = '';
+          if (item.isComprobado) {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-check"></i> Comprobado</span>`;
+          } else if (item.esPlazoVencido) {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-xmark"></i> Plazo Vencido</span>`;
+          } else if (item.esAlertaAviso) {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-black text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-bell"></i> Revisión Requerida</span>`;
+          } else {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">En Tiempo</span>`;
+          }
+
+          const payloadData = encodeURIComponent(JSON.stringify({
+            credito: item.credito,
+            nombre: item.nombre,
+            producto: item.producto,
+            desembolsado: item.desembolsado,
+            ingreso: item.ingresoRaw,
+            destino: item.destinoInfo.original,
+            sucursal: item.sucursal,
+            coordinacion: item.coordinacion,
+            dias: item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'
+          }));
+
+          tr.innerHTML = `
+            <td class="py-3 px-3 font-mono">${item.credito}</td>
+            <td class="py-3 px-3">${item.nombre}</td>
+            <td class="py-3 px-3">${item.producto}</td>
+            <td class="py-3 px-3 font-mono font-bold">${item.desembolsado}</td>
+            <td class="py-3 px-3">${item.ingresoRaw || 'N/A'}</td>
+            <td class="py-3 px-3 text-center">${item.destinoInfo.original}</td>
+            <td class="py-3 px-3">${item.sucursal || 'N/A'}</td>
+            <td class="py-3 px-3 font-semibold text-acreimex-900">${item.coordinacion}</td>
+            <td class="py-3 px-3 text-center font-black">
+              ${item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'}
+            </td>
+            <td class="py-3 px-3 text-center">${badgeHtml}</td>
+            <td class="py-3 px-3 text-center">
+              <input type="checkbox" ${item.isComprobado ? 'checked' : ''} 
+                onchange="toggleComprobado('${item.credito}', this.checked, '${payloadData}')"
+                class="w-5 h-5 text-acreimex-600 border-slate-300 rounded focus:ring-acreimex-600 cursor-pointer accent-acreimex-600">
+            </td>
+          `;
+
+          tableBody.appendChild(tr);
+          renderedItemsCount++;
+        }
+      }
+
+      currentShownCount.textContent = renderedItemsCount;
+      recordCount.textContent = `${totalItemsOnly} REGISTRO(S) TOTALES`;
+
+      if (renderedItemsCount < totalItemsOnly) {
+        loadMoreContainer.classList.remove('hidden');
+      } else {
+        loadMoreContainer.classList.add('hidden');
       }
     }
   </script>
