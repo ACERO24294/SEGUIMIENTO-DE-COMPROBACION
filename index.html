@@ -107,7 +107,7 @@
     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-3">
         <h2 class="text-base font-black text-acreimex-900 uppercase tracking-wide flex items-center gap-2">
-          <i class="fa-solid fa-folder-tree text-acreimex-600"></i> AGRUPACIÓN POR DESTINOS DEL CRÉDITO (SOLIDARIOS)
+          <i class="fa-solid fa-folder-tree text-acreimex-600"></i> AGRUPACIÓN POR DESTINOS DEL CRÉDITO
         </h2>
         
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -128,7 +128,7 @@
         </button>
       </div>
 
-      <!-- TARJETAS DE DESTINO (INCLUYENDO OTROS DE SOLIDARIOS) -->
+      <!-- TARJETAS DE DESTINO -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="COMERCIAL">
           <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
@@ -169,8 +169,8 @@
       <div class="flex items-start space-x-3">
         <i class="fa-solid fa-triangle-exclamation text-amber-600 text-2xl mt-0.5"></i>
         <div>
-          <h3 class="font-black text-sm uppercase" id="alertTitle">¡Atención! Registros Requieren Comprobación</h3>
-          <p class="text-xs text-amber-800 mt-1">Los siguientes registros superaron los días de alerta o plazo máximo:</p>
+          <h3 class="font-black text-sm uppercase" id="alertTitle">¡Atención! Faltan 5 días para el Vencimiento</h3>
+          <p class="text-xs text-amber-800 mt-1">Los siguientes registros llegaron al día límite de alerta (25 días) y están a 5 días de vencer:</p>
           <ul id="alertList" class="mt-2 text-xs font-bold space-y-1 list-disc list-inside max-h-36 overflow-y-auto pr-2"></ul>
         </div>
       </div>
@@ -180,7 +180,7 @@
     <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
         <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
-          <i class="fa-solid fa-table text-acreimex-600"></i> Registros de Coordinación Solidarios
+          <i class="fa-solid fa-table text-acreimex-600"></i> Registros del Sistema
         </span>
         <span id="recordCount" class="text-xs font-extrabold bg-acreimex-100 text-acreimex-900 px-3 py-1 rounded-full">
           Cargando datos...
@@ -198,7 +198,7 @@
               <th class="py-3 px-3">FECHA DE INGREGO</th>
               <th class="py-3 px-3 text-center">DESTINO</th>
               <th class="py-3 px-3">SUCURSAL</th>
-              <th class="py-3 px-3">COORDINACIÓN</th>
+              <th class="py-3 px-3">COORDINACION</th>
               <th class="py-3 px-3 text-center">DÍAS TRANSCURRIDOS</th>
               <th class="py-3 px-3 text-center">ESTATUS ALERTA</th>
               <th class="py-3 px-3 text-center">COMPROBADO</th>
@@ -233,11 +233,14 @@
     let visibleLimit = 5000;      
     let selectedSubDestinos = new Set();
 
+    const MOSTRAR_OTRAS_COORDINACIONES = false;
+
     const COMPROBADOS_KEY = "pwa_comprobaciones_confirmadas";
+    const NOTIFICADOS_KEY = "pwa_notificaciones_enviadas_hoy";
     const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
     const GID = "1166317926";
 
-    const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO"];
+    const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO", "OTROS"];
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('selectSucursal').addEventListener('change', () => {
@@ -271,8 +274,34 @@
         renderTableRows();
       });
 
+      solicitarPermisoNotificaciones();
       loadDataWithComprobaciones();
     });
+
+    function solicitarPermisoNotificaciones() {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
+    }
+
+    function dispararNotificacionPush(titulo, mensaje) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(titulo, {
+              body: mensaje,
+              icon: 'https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC',
+              badge: 'https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC',
+              vibrate: [200, 100, 200]
+            });
+          }).catch(() => {
+            new Notification(titulo, { body: mensaje });
+          });
+        } catch (e) {
+          new Notification(titulo, { body: mensaje });
+        }
+      }
+    }
 
     function getComprobados() {
       try { return JSON.parse(localStorage.getItem(COMPROBADOS_KEY) || '{}'); } catch (e) { return {}; }
@@ -501,7 +530,11 @@
       const currentSucursal = selectSucursal.value;
       selectSucursal.innerHTML = '<option value="TODOS">-- TODAS --</option>';
 
-      const sucursales = [...new Set(data.map(i => String(i.SUCURSAL || '').trim()).filter(Boolean))].sort();
+      const sucursales = [...new Set(data.map(i => {
+        const val = i.SUCURSAL || i["SUCURSAL"] || i.COL_6 || i.COL_7 || '';
+        return String(val).trim();
+      }).filter(Boolean))].sort();
+
       sucursales.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s;
@@ -524,14 +557,17 @@
 
       let filteredData = data;
       if (selectedSucursal !== 'TODOS') {
-        filteredData = filteredData.filter(row => String(row.SUCURSAL || '').trim() === selectedSucursal);
+        filteredData = filteredData.filter(row => {
+          const suc = String(row.SUCURSAL || row["SUCURSAL"] || row.COL_6 || row.COL_7 || '').trim();
+          return suc === selectedSucursal;
+        });
       }
 
       const otrosDestinosMap = new Map();
       filteredData.forEach(row => {
-        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim().toUpperCase();
+        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || row.COL_7 || row.COL_8 || '').trim().toUpperCase();
         const esSolidarios = coordinacion.includes('SOLIDARIO');
-        if (!esSolidarios) return; // Solo considerar solidarios para los sub-destinos
+        if (!esSolidarios && !MOSTRAR_OTRAS_COORDINACIONES) return;
 
         const info = getDestinoInfo(row);
         if (info.grupo === 'OTROS' && info.original && info.original !== 'N/A') {
@@ -573,13 +609,12 @@
       });
 
       excelData.forEach((row, index) => {
-        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim();
+        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || row.COL_7 || row.COL_8 || '').trim();
         const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
 
-        // RESTRICCIÓN: SE DESCARSTAN COMPLETAMENTE REGISTROS QUE NO SEAN DE SOLIDARIOS
-        if (!esCoordinacionSolidarios) return;
+        if (!esCoordinacionSolidarios && !MOSTRAR_OTRAS_COORDINACIONES) return;
 
-        const sucursal = String(row.SUCURSAL || '').trim();
+        const sucursal = String(row.SUCURSAL || row["SUCURSAL"] || row.COL_6 || row.COL_7 || '').trim();
         if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
 
         const rawCredito = row.CREDITO || row["CRÉDITO"] || row.NOMBRE_GRUPO || row.GRUPO || '';
@@ -604,7 +639,7 @@
 
         const diasTranscurridos = diasIngreso;
 
-        if (destinoInfo.grupo === 'COMERCIAL') {
+        if (destinoInfo.grupo === 'COMERCIAL' && esCoordinacionSolidarios) {
           const cumpleMonto = desembolsadoMonto >= 50000;
           const cumpleAntiguedad = diasIngreso !== null && diasIngreso >= 0 && diasIngreso <= 365;
           if (!cumpleMonto || !cumpleAntiguedad) return;
@@ -620,15 +655,13 @@
           });
         }
 
-        let targetGrupo = 'OTROS';
-        if (GRUPOS_BASE.includes(destinoInfo.grupo)) {
-          targetGrupo = destinoInfo.grupo;
+        let targetGrupo = destinoInfo.grupo;
+        if (GRUPOS_BASE.includes(targetGrupo)) {
+          // Grupo base válido
         } else if (selectedSubDestinos.has(destinoInfo.original)) {
           targetGrupo = destinoInfo.original;
-        }
-
-        if (selectedSubDestinos.size > 0 && targetGrupo === 'OTROS' && !selectedSubDestinos.has(destinoInfo.original)) {
-          return;
+        } else {
+          targetGrupo = "OTROS";
         }
 
         if (!groupedData[targetGrupo]) groupedData[targetGrupo] = [];
@@ -639,7 +672,7 @@
         });
       });
 
-      const carpetasAOrden = [...GRUPOS_BASE, ...Array.from(selectedSubDestinos), "OTROS"];
+      const carpetasAOrden = [...GRUPOS_BASE, ...Array.from(selectedSubDestinos)];
 
       carpetasAOrden.forEach(grupo => {
         const items = groupedData[grupo];
@@ -656,11 +689,36 @@
       if (pendingAlerts.length > 0) {
         alertBanner.classList.remove('hidden');
         alertList.innerHTML = '';
+        
+        let notificadosHoy = JSON.parse(localStorage.getItem(NOTIFICADOS_KEY) || '{}');
+        let hoyStr = new Date().toDateString();
+        let enviarNotiPush = false;
+        let cantidadAlertas = pendingAlerts.length;
+
         pendingAlerts.forEach(item => {
           const li = document.createElement('li');
-          li.innerHTML = `<strong>${item.nombre}</strong> (${item.credito}) - Coord: ${item.coordinacion} - Sucursal ${item.sucursal} - Destino: ${item.destino} - <span class="underline">${item.dias} días transcurridos</span>`;
+          let diasRestantes = 30 - item.dias; // Calculando los días restantes exactos
+          if (diasRestantes < 0) diasRestantes = 0;
+          
+          li.innerHTML = `<strong>${item.nombre}</strong> (${item.credito}) - Sucursal ${item.sucursal} - <span class="underline">Faltan ${diasRestantes} días para vencer</span>`;
           alertList.appendChild(li);
+
+          // Si llegó al día de aviso exacto y no se le ha notificado hoy
+          if (item.dias === 25 && !notificadosHoy[item.credito + hoyStr]) {
+            notificadosHoy[item.credito + hoyStr] = true;
+            enviarNotiPush = true;
+          }
         });
+
+        localStorage.setItem(NOTIFICADOS_KEY, JSON.stringify(notificadosHoy));
+
+        if (enviarNotiPush) {
+          dispararNotificacionPush(
+            "⚠️ Atención: Créditos Próximos a Vencer", 
+            `Tienes ${cantidadaras || cantidadAlertas} registros que alcanzaron los 25 días. ¡Solo faltan 5 días para su vencimiento!`
+          );
+        }
+
       } else {
         alertBanner.classList.add('hidden');
       }
@@ -682,7 +740,7 @@
         tableBody.innerHTML = `
           <tr>
             <td colspan="11" class="text-center py-8 text-slate-400 font-bold">
-              No se encontraron registros de Solidarios que coincidan con la selección aplicada.
+              No se encontraron registros que coincidan con la selección aplicada.
             </td>
           </tr>
         `;
@@ -710,7 +768,7 @@
           if (currentHeaderHtml) {
             const headerTr = document.createElement('tr');
             headerTr.className = 'group-header font-black uppercase text-sm border-y-2 border-acreimex-900';
-            const tituloCarpeta = GRUPOS_BASE.includes(currentHeaderHtml.grupo) ? `${currentHeaderHtml.grupo} (SOLIDARIOS)` : currentHeaderHtml.grupo;
+            const tituloCarpeta = currentHeaderHtml.grupo === 'OTROS' ? 'OTROS DESTINOS (SOLIDARIOS)' : `${currentHeaderHtml.grupo} (SOLIDARIOS)`;
 
             headerTr.innerHTML = `
               <td colspan="11" class="py-3 px-4 bg-acreimex-900 text-white shadow-inner">
@@ -741,7 +799,7 @@
           } else if (item.esPlazoVencido) {
             badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-xmark"></i> Plazo Vencido</span>`;
           } else if (item.esAlertaAviso) {
-            badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-black text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-bell"></i> Revisión Requerida</span>`;
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-black text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-bell"></i> ¡Faltan 5 días!</span>`;
           } else {
             badgeHtml = `<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">En Tiempo</span>`;
           }
