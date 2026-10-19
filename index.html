@@ -281,7 +281,44 @@
       programarVerificacionMatutina();
     });
 
-    
+    // ACTIVACIÓN DE ALERTAS EXTERNAS MATUTINAS (9:00 AM - 10:00 AM)
+    async function activarAlertasDiarias() {
+      if (!("Notification" in window)) {
+        alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
+        return;
+      }
+
+      const permiso = await Notification.requestPermission();
+      if (permiso === "granted") {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          if ('periodicSync' in reg) {
+            try {
+              await reg.periodicSync.register('check-creditos-vencidos', {
+                minInterval: 24 * 60 * 60 * 1000 // Ejecutar 1 vez al día
+              });
+            } catch (e) {
+              console.log("Sincronización periódica registrada en modo estándar.");
+            }
+          }
+        }
+        alert("¡Alertas externas activadas! Recibirás avisos emergentes todas las mañanas entre 9:00 AM y 10:00 AM aun con la app cerrada.");
+      } else {
+        alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos externos.");
+      }
+    }
+
+    function programarVerificacionMatutina() {
+      const ahora = new Date();
+      const horaActual = ahora.getHours();
+
+      // Si la app está abierta dentro del rango de 9 a 10 AM, ejecuta el chequeo
+      if (horaActual >= 11 && horaActual < 12) {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
+        }
+      }
+    }
 
     function getComprobados() {
       try { return JSON.parse(localStorage.getItem(COMPROBADOS_KEY) || '{}'); } catch (e) { return {}; }
@@ -807,45 +844,30 @@
     }
   </script>
 
- // ACTIVACIÓN DE ALERTAS EXTERNAS MATUTINAS (9:00 AM - 10:00 AM)
-    async function activarAlertasDiarias() {
-      if (!("Notification" in window)) {
-        alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
-        return;
-      }
 
-      const permiso = await Notification.requestPermission();
-      if (permiso === "granted") {
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if ('periodicSync' in reg) {
-            try {
-              await reg.periodicSync.register('check-creditos-vencidos', {
-                minInterval: 24 * 60 * 60 * 1000 // Ejecutar 1 vez al día
-              });
-            } catch (e) {
-              console.log("Sincronización periódica registrada en modo estándar.");
-            }
-          }
-        }
-        alert("¡Alertas externas activadas! Recibirás avisos emergentes todas las mañanas entre 9:00 AM y 10:00 AM aun con la app cerrada.");
-      } else {
-        alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos externos.");
+// Función ajustada para programar la prueba a las 10:00 AM
+async function activarAlertasDiarias() {
+  if (!("Notification" in window)) {
+    alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
+    return;
+  }
+
+  const permiso = await Notification.requestPermission();
+  if (permiso === "granted") {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      // Enviar instrucción al Service Worker para programar la prueba a las 10:00 AM
+      if (reg.active) {
+        reg.active.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
+      } else if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
       }
     }
-
-    function programarVerificacionMatutina() {
-      const ahora = new Date();
-      const horaActual = ahora.getHours();
-
-      // Si la app está abierta dentro del rango de 9 a 10 AM, ejecuta el chequeo
-      if (horaActual >= 11 && horaActual < 12) {
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
-        }
-      }
-    }
-
+    alert("¡Prueba de alerta programada! A las 10:00 AM recibirás la notificación emergente en tu dispositivo aunque cierres la app.");
+  } else {
+    alert("Debes permitir las notificaciones para recibir la prueba.");
+  }
+}
 
   <script>
     if ('serviceWorker' in navigator) {
