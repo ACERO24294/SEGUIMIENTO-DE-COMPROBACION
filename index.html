@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0056b3">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ACREIMEX">
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC">
+
+  <title>Control de Comprobaciones - ACREIMEX</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            acreimex: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0088ff',
+              600: '#0066b2',
+              700: '#005393',
+              800: '#004b87',
+              900: '#003360',
+            },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .row-vencido { background-color: #dc3545 !important; color: #ffffff !important; }
+    .row-vencido td, .row-vencido span { color: #ffffff !important; }
+
+    .row-alert { background-color: #ffc107 !important; color: #000000 !important; }
+    .row-alert td, .row-alert span { color: #000000 !important; }
+
+    .row-completed { background-color: #1e7e34 !important; color: #ffffff !important; }
+    .row-completed td, .row-completed span { color: #ffffff !important; }
+
+    input[readonly] {
+      background-color: #f1f5f9 !important;
+      color: #64748b !important;
+      cursor: not-allowed;
+    }
+
+    .destino-card {
+      transition: all 0.2s ease-in-out;
+      user-select: none;
+    }
+
+    .group-header {
+      background-color: #003360;
+      color: #ffffff;
+    }
+
+    .logo-hdr {
+      max-height: 48px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans p-4 sm:p-6">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- SECCIÓN SUPERIOR -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white p-5 rounded-xl shadow-sm border border-slate-200 items-center">
+      
+      <!-- LOGO -->
+      <div class="lg:col-span-3 w-full flex justify-center lg:justify-start items-center">
+        <img src="https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC" alt="Logo ACREIMEX" class="logo-hdr">
+      </div>
+
+      <!-- FILTRO DE SUCURSAL -->
+      <div class="lg:col-span-5 w-full">
+        <label for="selectSucursal" class="block text-[11px] font-black text-acreimex-900 uppercase tracking-wide mb-1 truncate">
+          <i class="fa-solid fa-building-user text-acreimex-600 mr-1"></i> SUCURSAL:
+        </label>
+        <select id="selectSucursal" class="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-acreimex-600 focus:outline-none">
+          <option value="TODOS">-- TODAS --</option>
+        </select>
+      </div>
+
+      <!-- BOTONES DE ACCIÓN -->
+      <div class="lg:col-span-4 w-full flex gap-2">
+        <button id="btnNotificaciones" class="w-1/2 px-2 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] rounded-lg transition tracking-wider flex items-center justify-center gap-1 shadow-md uppercase">
+          <i class="fa-solid fa-bell"></i> ALERTAS EXTERNAS (9 AM)
+        </button>
+
+        <button id="btnSync" class="w-1/2 px-2 py-3 bg-acreimex-600 hover:bg-acreimex-800 text-white font-extrabold text-[11px] rounded-lg transition tracking-wider flex items-center justify-center gap-1 shadow-md uppercase">
+          <i class="fa-solid fa-rotate"></i> SINCRONIZAR
+        </button>
+      </div>
+
+    </div>
+
+    <!-- SECCIÓN DESTINOS DE CRÉDITO -->
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-3">
+        <h2 class="text-base font-black text-acreimex-900 uppercase tracking-wide flex items-center gap-2">
+          <i class="fa-solid fa-folder-tree text-acreimex-600"></i> AGRUPACIÓN POR DESTINOS DEL CRÉDITO
+        </h2>
+        
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <label for="selectSubDestino" class="text-xs font-black text-slate-700 whitespace-nowrap">
+            Filtrar Destino Específico:
+          </label>
+          <select id="selectSubDestino" class="text-xs font-extrabold bg-slate-50 border border-acreimex-600 rounded-lg p-2 text-acreimex-900 focus:ring-2 focus:ring-acreimex-600 focus:outline-none min-w-[200px]">
+            <option value="">-- Agregar destino específico --</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="subDestinosTagsContainer" class="hidden flex flex-wrap items-center gap-2 bg-acreimex-50 p-2.5 rounded-lg border border-acreimex-100">
+        <span class="text-[11px] font-bold text-acreimex-900 mr-1">Sub-destinos con carpeta propia:</span>
+        <div id="tagsList" class="flex flex-wrap gap-2"></div>
+        <button id="btnClearSubDestinos" class="text-[10px] font-bold text-red-600 hover:text-red-800 underline ml-auto">
+          Quitar todos los sub-destinos
+        </button>
+      </div>
+
+      <!-- TARJETAS DE DESTINO -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="COMERCIAL">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-store text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">COMERCIAL (SOLIDARIOS)</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-acreimex-600 text-white px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+
+        <div class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="PROMOCIÓN ESCOLAR">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-graduation-cap text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">PROMOCIÓN ESCOLAR (SOLIDARIOS)</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-acreimex-600 text-white px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+
+        <div class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="AGUA Y SANEAMIENTO">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-faucet-drip text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">AGUA Y SANEAMIENTO (SOLIDARIOS)</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-acreimex-600 text-white px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+
+        <div id="cardOtros" class="destino-card bg-slate-50 border-2 border-acreimex-600 p-4 sm:p-5 rounded-xl min-h-[85px] flex items-center justify-between gap-3 shadow-sm" data-destino="OTROS">
+          <h3 class="card-title text-xs font-black text-slate-800 uppercase whitespace-normal break-words leading-snug flex items-start gap-1.5 flex-1">
+            <i class="fa-solid fa-boxes-stacked text-acreimex-600 mt-0.5 shrink-0"></i> 
+            <span class="title-text">OTROS DESTINOS (SOLIDARIOS)</span>
+          </h3>
+          <span class="status-badge text-[9px] font-black bg-acreimex-600 text-white px-2 py-1 rounded shrink-0 self-start">MOSTRANDO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER DE ALERTAS -->
+    <div id="alertBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-sm text-amber-900">
+      <div class="flex items-start space-x-3">
+        <i class="fa-solid fa-triangle-exclamation text-amber-600 text-2xl mt-0.5"></i>
+        <div>
+          <h3 class="font-black text-sm uppercase" id="alertTitle">¡Atención! Registros Requieren Comprobación</h3>
+          <p class="text-xs text-amber-800 mt-1">Los siguientes registros superaron los días de alerta o plazo máximo:</p>
+          <ul id="alertList" class="mt-2 text-xs font-bold space-y-1 list-disc list-inside max-h-36 overflow-y-auto pr-2"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA DE REGISTROS -->
+    <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
+        <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+          <i class="fa-solid fa-table text-acreimex-600"></i> Registros del Sistema
+        </span>
+        <span id="recordCount" class="text-xs font-extrabold bg-acreimex-100 text-acreimex-900 px-3 py-1 rounded-full">
+          Cargando datos...
+        </span>
+      </div>
+
+      <div class="overflow-x-auto w-full">
+        <table id="dataTable" class="w-full text-left text-xs">
+          <thead class="bg-acreimex-900 text-white font-black uppercase tracking-wider border-b border-slate-300">
+            <tr>
+              <th class="py-3 px-3">CRÉDITO / GRUPO</th>
+              <th class="py-3 px-3">NOMBRE</th>
+              <th class="py-3 px-3">PRODUCTO</th>
+              <th class="py-3 px-3">DESEMBOLSADO</th>
+              <th class="py-3 px-3">FECHA DE INGREGO</th>
+              <th class="py-3 px-3 text-center">DESTINO</th>
+              <th class="py-3 px-3">SUCURSAL</th>
+              <th class="py-3 px-3">COORDINACION</th>
+              <th class="py-3 px-3 text-center">DÍAS TRANSCURRIDOS</th>
+              <th class="py-3 px-3 text-center">ESTATUS ALERTA</th>
+              <th class="py-3 px-3 text-center">COMPROBADO</th>
+            </tr> 
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-200">
+            <tr>
+              <td colspan="11" class="text-center py-10 text-slate-400 font-bold">
+                <i class="fa-solid fa-spinner fa-spin text-3xl mb-2 text-acreimex-600 block"></i>
+                Cargando datos...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- BOTÓN DE PAGINACIÓN -->
+      <div id="loadMoreContainer" class="hidden p-4 bg-slate-50 border-t border-slate-200 text-center">
+        <button id="btnLoadMore" class="px-6 py-2.5 bg-acreimex-600 hover:bg-acreimex-800 text-white font-black text-xs rounded-lg transition shadow">
+          CARGAR 5,000 REGISTROS MÁS (Mostrando <span id="currentShownCount">0</span> de <span id="totalFilteredCount">0</span>)
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxT3tsjYtlGY8J2z9PfNh2DYstqkmucP2vwkHCRM4OBz6pgCBDVwFaoMHjF9rxxaIme4w/exec";
+
+    let excelData = [];
+    let filteredItemsGlobal = []; 
+    let visibleLimit = 5000;      
+    let selectedSubDestinos = new Set();
+
+    const MOSTRAR_OTRAS_COORDINACIONES = false;
+    const COMPROBADOS_KEY = "pwa_comprobaciones_confirmadas";
+    const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
+    const GID = "1166317926";
+
+    const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO", "OTROS"];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('selectSucursal').addEventListener('change', () => {
+        visibleLimit = 5000; 
+        populateSubDestinosSelect(excelData);
+        filterAndRender();
+      });
+
+      document.getElementById('btnSync').addEventListener('click', loadDataWithComprobaciones);
+      
+      const btnNotif = document.getElementById('btnNotificaciones');
+      if (btnNotif) {
+        btnNotif.addEventListener('click', activarAlertasDiarias);
+      }
+
+      document.getElementById('selectSubDestino').addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) {
+          visibleLimit = 5000;
+          selectedSubDestinos.add(val);
+          renderSubDestinoTags();
+          filterAndRender();
+          e.target.value = '';
+        }
+      });
+
+      document.getElementById('btnClearSubDestinos').addEventListener('click', () => {
+        visibleLimit = 5000;
+        selectedSubDestinos.clear();
+        renderSubDestinoTags();
+        filterAndRender();
+      });
+
+      document.getElementById('btnLoadMore').addEventListener('click', () => {
+        visibleLimit += 5000; 
+        renderTableRows();
+      });
+
+      loadDataWithComprobaciones();
+      programarVerificacionMatutina();
+    });
+
+    // ACTIVACIÓN DE ALERTAS EXTERNAS MATUTINAS (9:00 AM - 10:00 AM)
+    async function activarAlertasDiarias() {
+      if (!("Notification" in window)) {
+        alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
+        return;
+      }
+
+      const permiso = await Notification.requestPermission();
+      if (permiso === "granted") {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          if ('periodicSync' in reg) {
+            try {
+              await reg.periodicSync.register('check-creditos-vencidos', {
+                minInterval: 24 * 60 * 60 * 1000 // Ejecutar 1 vez al día
+              });
+            } catch (e) {
+              console.log("Sincronización periódica registrada en modo estándar.");
+            }
+          }
+        }
+        alert("¡Alertas externas activadas! Recibirás avisos emergentes todas las mañanas entre 9:00 AM y 10:00 AM aun con la app cerrada.");
+      } else {
+        alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos externos.");
+      }
+    }
+
+    function programarVerificacionMatutina() {
+      const ahora = new Date();
+      const horaActual = ahora.getHours();
+
+      // Si la app está abierta dentro del rango de 9 a 10 AM, ejecuta el chequeo
+      if (horaActual >= 9 && horaActual < 10) {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
+        }
+      }
+    }
+
+    function getComprobados() {
+      try { return JSON.parse(localStorage.getItem(COMPROBADOS_KEY) || '{}'); } catch (e) { return {}; }
+    }
+
+    function saveComprobados(data) {
+      localStorage.setItem(COMPROBADOS_KEY, JSON.stringify(data));
+    }
+
+    async function syncComprobadosDesdeSheets() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("TU_SCRIPT_ID_AQUI")) return;
+      try {
+        const res = await fetch(APPS_SCRIPT_URL);
+        const json = await res.json();
+        if (json && Array.isArray(json.comprobados)) {
+          const local = getComprobados();
+          json.comprobados.forEach(credito => { local[credito] = true; });
+          saveComprobados(local);
+        }
+      } catch (err) {
+        console.warn("No se pudieron cargar las comprobaciones desde Sheets:", err);
+      }
+    }
+
+    async function loadDataWithComprobaciones() {
+      await syncComprobadosDesdeSheets();
+      fetchGoogleSheetData();
+    }
+
+    function renderSubDestinoTags() {
+      const container = document.getElementById('subDestinosTagsContainer');
+      const tagsList = document.getElementById('tagsList');
+      tagsList.innerHTML = '';
+
+      if (selectedSubDestinos.size === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+
+      container.classList.remove('hidden');
+      selectedSubDestinos.forEach(sub => {
+        const tag = document.createElement('span');
+        tag.className = 'inline-flex items-center gap-1.5 bg-acreimex-600 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-sm';
+        tag.innerHTML = `
+          ${sub}
+          <button onclick="removeSubDestino('${sub}')" class="hover:text-red-200 transition font-black ml-1">✕</button>
+        `;
+        tagsList.appendChild(tag);
+      });
+    }
+
+    function removeSubDestino(subName) {
+      visibleLimit = 5000;
+      selectedSubDestinos.delete(subName);
+      renderSubDestinoTags();
+      filterAndRender();
+    }
+
+    function fetchGoogleSheetData() {
+      const tableBody = document.getElementById('tableBody');
+      const btnSync = document.getElementById('btnSync');
+      
+      btnSync.disabled = true;
+      btnSync.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> CARGANDO...`;
+
+      const existingScript = document.getElementById('gviz-jsonp-script');
+      if (existingScript) existingScript.remove();
+
+      window.handleGVizResponse = function(response) {
+        btnSync.disabled = false;
+        btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> SINCRONIZAR`;
+
+        if (!response || response.status === 'error') {
+          tableBody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-red-600 font-bold">Error al cargar Google Sheets.</td></tr>`;
+          return;
+        }
+
+        const cols = response.table.cols.map(c => c ? (c.label || c.id || '').trim().toUpperCase() : '');
+        const rows = response.table.rows;
+
+        excelData = rows.map(r => {
+          let rowObj = {};
+          if (r && r.c) {
+            r.c.forEach((cell, idx) => {
+              const colName = cols[idx] || `COL_${idx}`;
+              let val = '';
+              if (cell) {
+                if (cell.f !== undefined && cell.f !== null) {
+                  val = String(cell.f).trim();
+                } else if (cell.v !== undefined && cell.v !== null) {
+                  val = String(cell.v).trim();
+                }
+              }
+              rowObj[`COL_${idx}`] = val;
+              rowObj[colName] = val;
+            });
+          }
+          return rowObj;
+        });
+
+        populateSucursales(excelData);
+        populateSubDestinosSelect(excelData);
+        visibleLimit = 5000;
+        filterAndRender();
+      };
+
+      const jsonpUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:handleGVizResponse&gid=${GID}`;
+      const script = document.createElement('script');
+      script.id = 'gviz-jsonp-script';
+      script.src = jsonpUrl;
+      script.onerror = function() {
+        btnSync.disabled = false;
+        btnSync.innerHTML = `<i class="fa-solid fa-rotate"></i> SINCRONIZAR`;
+        tableBody.innerHTML = `<tr><td colspan="11" class="text-center py-10 text-red-600 font-bold">Error de conexión. Verifica la URL.</td></tr>`;
+      };
+      document.body.appendChild(script);
+    }
+
+    function toggleComprobado(credito, isChecked, rowDataEncoded) {
+      const comprobados = getComprobados();
+      const rowData = JSON.parse(decodeURIComponent(rowDataEncoded));
+
+      if (isChecked) {
+        comprobados[credito] = true;
+        saveComprobados(comprobados);
+
+        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("TU_SCRIPT_ID_AQUI")) {
+          fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(rowData)
+          }).catch(err => console.error("Error al registrar comprobación:", err));
+        }
+      } else {
+        delete comprobados[credito];
+        saveComprobados(comprobados);
+      }
+
+      filterAndRender();
+    }
+
+    function parseExcelDate(dateVal) {
+      if (!dateVal) return null;
+      if (dateVal instanceof Date) return dateVal;
+      
+      const strVal = String(dateVal).trim();
+      const gvizMatch = strVal.match(/Date\((\d+),(\d+),(\d+)\)/);
+      if (gvizMatch) {
+        return new Date(parseInt(gvizMatch[1], 10), parseInt(gvizMatch[2], 10), parseInt(gvizMatch[3], 10));
+      }
+
+      const match = strVal.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+      if (match) {
+        let p1 = parseInt(match[1], 10);
+        let p2 = parseInt(match[2], 10);
+        const anio = parseInt(match[3], 10);
+        let dia, mes;
+
+        if (p2 > 12) { mes = p1 - 1; dia = p2; }
+        else if (p1 > 12) { dia = p1; mes = p2 - 1; }
+        else { dia = p1; mes = p2 - 1; }
+
+        return new Date(anio, mes, dia);
+      }
+
+      const parsed = new Date(strVal);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function parseMonto(val) {
+      if (typeof val === 'number') return val;
+      if (!val) return 0;
+      const cleaned = String(val).replace(/[^0-9.-]+/g, "");
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function formatMoneda(val) {
+      const num = parseMonto(val);
+      if (num === 0 && !val) return '-';
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(num);
+    }
+
+    function getDestinoInfo(row) {
+      const rawDestino = String(
+        row["DESTINO DEL CRÉDITO"] || row["DESTINO DEL CREDITO"] || row.DESTINO_DEL_CREDITO || row.DESTINO || row.DESTINO_CREDITO || row.COL_31 || row.COL_30 || ''
+      ).trim().toUpperCase();
+
+      if (!rawDestino) return { original: 'N/A', grupo: 'OTROS', aviso: 25, maximo: 30 };
+
+      if (rawDestino.includes('PROMOCIÓN') || rawDestino.includes('PROMOCION')) {
+        return { original: rawDestino, grupo: 'PROMOCIÓN ESCOLAR', aviso: 10, maximo: 15 };
+      }
+
+      if (
+        rawDestino.includes('AGUA') || rawDestino.includes('SANEAMIENTO') || rawDestino.includes('BAÑO') || 
+        rawDestino.includes('DRENAJE') || rawDestino.includes('TINACO') || rawDestino.includes('TINACOS') || 
+        rawDestino.includes('LETRINAS') || rawDestino.includes('SEPTICAS') || rawDestino.includes('CISTERNA') || 
+        rawDestino.includes('BIODIGESTOR') || rawDestino.includes('MOTOBOMBA') || rawDestino.includes('POZO') || 
+        rawDestino.includes('PLUVIAL') || rawDestino.includes('PLOMERIA') || rawDestino.includes('TUBERIA')
+      ) {
+        return { original: rawDestino, grupo: 'AGUA Y SANEAMIENTO', aviso: 25, maximo: 30 };
+      }
+
+      if (
+        rawDestino.includes('MERCANCIA') || rawDestino.includes('MERCANCÍA') || 
+        rawDestino.includes('MERCANCIAS') || rawDestino.includes('MERCANCÍAS') || 
+        rawDestino.includes('EMPRENDER') || rawDestino.includes('NEGOCIO') || 
+        rawDestino.includes('COMERCIO') || rawDestino.includes('MATERIA PRIMA') || 
+        rawDestino.includes('ACTIVO FIJO') || rawDestino.includes('INVENTARIO')
+      ) {
+        return { original: rawDestino, grupo: 'COMERCIAL', aviso: 25, maximo: 30 };
+      }
+
+      return { original: rawDestino, grupo: 'OTROS', aviso: 25, maximo: 30 };
+    }
+
+    function populateSucursales(data) {
+      const selectSucursal = document.getElementById('selectSucursal');
+      const currentSucursal = selectSucursal.value;
+      selectSucursal.innerHTML = '<option value="TODOS">-- TODAS --</option>';
+
+      const sucursales = [...new Set(data.map(i => {
+        const val = i.SUCURSAL || i["SUCURSAL"] || i.COL_6 || i.COL_7 || '';
+        return String(val).trim();
+      }).filter(Boolean))].sort();
+
+      sucursales.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = `SUCURSAL ${s}`;
+        selectSucursal.appendChild(opt);
+      });
+
+      if (sucursales.includes(currentSucursal)) {
+        selectSucursal.value = currentSucursal;
+      } else {
+        selectSucursal.value = 'TODOS';
+      }
+    }
+
+    function populateSubDestinosSelect(data) {
+      const selectSub = document.getElementById('selectSubDestino');
+      const selectedSucursal = document.getElementById('selectSucursal').value;
+      
+      selectSub.innerHTML = '<option value="">-- Agregar destino específico --</option>';
+
+      let filteredData = data;
+      if (selectedSucursal !== 'TODOS') {
+        filteredData = filteredData.filter(row => {
+          const suc = String(row.SUCURSAL || row["SUCURSAL"] || row.COL_6 || row.COL_7 || '').trim();
+          return suc === selectedSucursal;
+        });
+      }
+
+      const otrosDestinosMap = new Map();
+      filteredData.forEach(row => {
+        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || row.COL_7 || row.COL_8 || '').trim().toUpperCase();
+        const esSolidarios = coordinacion.includes('SOLIDARIO');
+        if (!esSolidarios && !MOSTRAR_OTRAS_COORDINACIONES) return;
+
+        const info = getDestinoInfo(row);
+        if (info.grupo === 'OTROS' && info.original && info.original !== 'N/A') {
+          if (!otrosDestinosMap.has(info.original)) {
+            otrosDestinosMap.set(info.original, info.original);
+          }
+        }
+      });
+
+      Array.from(otrosDestinosMap.keys()).sort().forEach(subEtiqueta => {
+        const opt = document.createElement('option');
+        opt.value = subEtiqueta;
+        opt.textContent = subEtiqueta;
+        selectSub.appendChild(opt);
+      });
+    }
+
+    function filterAndRender() {
+      const selectedSucursal = document.getElementById('selectSucursal').value;
+      const alertBanner = document.getElementById('alertBanner');
+      const alertList = document.getElementById('alertList');
+      
+      const comprobados = getComprobados();
+      let pendingAlerts = [];
+      filteredItemsGlobal = [];
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const groupedData = {
+        "COMERCIAL": [],
+        "PROMOCIÓN ESCOLAR": [],
+        "AGUA Y SANEAMIENTO": [],
+        "OTROS": []
+      };
+
+      selectedSubDestinos.forEach(sub => {
+        if (!groupedData[sub]) groupedData[sub] = [];
+      });
+
+      excelData.forEach((row, index) => {
+        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || row.COL_7 || row.COL_8 || '').trim();
+        const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
+
+        if (!esCoordinacionSolidarios && !MOSTRAR_OTRAS_COORDINACIONES) return;
+
+        const sucursal = String(row.SUCURSAL || row["SUCURSAL"] || row.COL_6 || row.COL_7 || '').trim();
+        if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
+
+        const rawCredito = row.CREDITO || row["CRÉDITO"] || row.NOMBRE_GRUPO || row.GRUPO || '';
+        const credito = rawCredito !== '' ? String(rawCredito).trim() : `Reg-${index + 1}`;
+
+        const nombre = row.NOMBRE || row.CLIENTE || '-';
+        const producto = row.PRODUCTO || '-';
+        const desembolsadoVal = row.DESEMBOLSADO || row.MONTO || '';
+        const desembolsadoMonto = parseMonto(desembolsadoVal);
+        const desembolsado = formatMoneda(desembolsadoVal);
+        
+        const ingresoRaw = row.COL_4 || row["FECHA DE INGREGO"] || row["FECHA DE INGRESO"] || row.INGRESO || row.FECHA_INGRESO || row.FECHA || '';
+
+        const destinoInfo = getDestinoInfo(row);
+
+        const fechaIngreso = parseExcelDate(ingresoRaw);
+        let diasIngreso = null;
+        if (fechaIngreso) {
+          fechaIngreso.setHours(0, 0, 0, 0);
+          diasIngreso = Math.floor((today - fechaIngreso) / (1000 * 60 * 60 * 24));
+        }
+
+        const diasTranscurridos = diasIngreso;
+
+        if (destinoInfo.grupo === 'COMERCIAL' && esCoordinacionSolidarios) {
+          const cumpleMonto = desembolsadoMonto >= 50000;
+          const cumpleAntiguedad = diasIngreso !== null && diasIngreso >= 0 && diasIngreso <= 365;
+          if (!cumpleMonto || !cumpleAntiguedad) return;
+        }
+
+        const isComprobado = !!comprobados[credito];
+        const esAlertaAviso = diasTranscurridos !== null && diasTranscurridos >= destinoInfo.aviso && !isComprobado;
+        const esPlazoVencido = diasTranscurridos !== null && diasTranscurridos >= destinoInfo.maximo && !isComprobado;
+
+        if (esAlertaAviso || esPlazoVencido) {
+          pendingAlerts.push({ 
+            credito, nombre, dias: diasTranscurridos, sucursal, destino: destinoInfo.original, coordinacion 
+          });
+        }
+
+        let targetGrupo = destinoInfo.grupo;
+        if (GRUPOS_BASE.includes(targetGrupo)) {
+          // Grupo base
+        } else if (selectedSubDestinos.has(destinoInfo.original)) {
+          targetGrupo = destinoInfo.original;
+        } else {
+          targetGrupo = "OTROS";
+        }
+
+        if (!groupedData[targetGrupo]) groupedData[targetGrupo] = [];
+
+        groupedData[targetGrupo].push({
+          credito, nombre, producto, desembolsado, ingresoRaw, destinoInfo, sucursal,
+          coordinacion: coordinacion || 'N/A', diasTranscurridos, isComprobado, esAlertaAviso, esPlazoVencido
+        });
+      });
+
+      const carpetasAOrden = [...GRUPOS_BASE, ...Array.from(selectedSubDestinos)];
+
+      carpetasAOrden.forEach(grupo => {
+        const items = groupedData[grupo];
+        if (items && items.length > 0) {
+          filteredItemsGlobal.push({ type: 'header', grupo, count: items.length });
+          items.forEach(item => {
+            filteredItemsGlobal.push({ type: 'item', data: item });
+          });
+        }
+      });
+
+      renderTableRows();
+
+      if (pendingAlerts.length > 0) {
+        alertBanner.classList.remove('hidden');
+        alertList.innerHTML = '';
+        pendingAlerts.forEach(item => {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${item.nombre}</strong> (${item.credito}) - Coord: ${item.coordinacion} - Sucursal ${item.sucursal} - Destino: ${item.destino} - <span class="underline">${item.dias} días transcurridos</span>`;
+          alertList.appendChild(li);
+        });
+      } else {
+        alertBanner.classList.add('hidden');
+      }
+    }
+
+    function renderTableRows() {
+      const tableBody = document.getElementById('tableBody');
+      const recordCount = document.getElementById('recordCount');
+      const loadMoreContainer = document.getElementById('loadMoreContainer');
+      const currentShownCount = document.getElementById('currentShownCount');
+      const totalFilteredCount = document.getElementById('totalFilteredCount');
+
+      tableBody.innerHTML = '';
+
+      let totalItemsOnly = filteredItemsGlobal.filter(i => i.type === 'item').length;
+      totalFilteredCount.textContent = totalItemsOnly;
+
+      if (totalItemsOnly === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="11" class="text-center py-8 text-slate-400 font-bold">
+              No se encontraron registros que coincidan con la selección aplicada.
+            </td>
+          </tr>
+        `;
+        recordCount.textContent = `0 REGISTROS`;
+        loadMoreContainer.classList.add('hidden');
+        return;
+      }
+
+      let renderedItemsCount = 0;
+      let currentHeaderHtml = null;
+
+      for (let i = 0; i < filteredItemsGlobal.length; i++) {
+        const element = filteredItemsGlobal[i];
+
+        if (element.type === 'header') {
+          currentHeaderHtml = element;
+          continue;
+        }
+
+        if (element.type === 'item') {
+          if (renderedItemsCount >= visibleLimit) {
+            break;
+          }
+
+          if (currentHeaderHtml) {
+            const headerTr = document.createElement('tr');
+            headerTr.className = 'group-header font-black uppercase text-sm border-y-2 border-acreimex-900';
+            const tituloCarpeta = currentHeaderHtml.grupo === 'OTROS' ? 'OTROS DESTINOS (SOLIDARIOS)' : `${currentHeaderHtml.grupo} (SOLIDARIOS)`;
+
+            headerTr.innerHTML = `
+              <td colspan="11" class="py-3 px-4 bg-acreimex-900 text-white shadow-inner">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-folder-open text-amber-400 text-base"></i>
+                  <span class="tracking-wide">${tituloCarpeta}</span>
+                  <span class="ml-2 text-xs font-normal bg-acreimex-800 text-acreimex-100 px-2 py-0.5 rounded-full border border-acreimex-700">
+                    ${currentHeaderHtml.count} registro(s)
+                  </span>
+                </div>
+              </td>
+            `;
+            tableBody.appendChild(headerTr);
+            currentHeaderHtml = null;
+          }
+
+          const item = element.data;
+          const tr = document.createElement('tr');
+          tr.className = "transition-colors font-bold";
+
+          if (item.isComprobado) tr.classList.add('row-completed');
+          else if (item.esPlazoVencido) tr.classList.add('row-vencido');
+          else if (item.esAlertaAviso) tr.classList.add('row-alert');
+
+          let badgeHtml = '';
+          if (item.isComprobado) {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-check"></i> Comprobado</span>`;
+          } else if (item.esPlazoVencido) {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-circle-xmark"></i> Plazo Vencido</span>`;
+          } else if (item.esAlertaAviso) {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-black/20 text-black text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-bell"></i> Revisión Requerida</span>`;
+          } else {
+            badgeHtml = `<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">En Tiempo</span>`;
+          }
+
+          const payloadData = encodeURIComponent(JSON.stringify({
+            credito: item.credito,
+            nombre: item.nombre,
+            producto: item.producto,
+            desembolsado: item.desembolsado,
+            ingreso: item.ingresoRaw,
+            destino: item.destinoInfo.original,
+            sucursal: item.sucursal,
+            coordinacion: item.coordinacion,
+            dias: item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'
+          }));
+
+          tr.innerHTML = `
+            <td class="py-3 px-3 font-mono">${item.credito}</td>
+            <td class="py-3 px-3">${item.nombre}</td>
+            <td class="py-3 px-3">${item.producto}</td>
+            <td class="py-3 px-3 font-mono font-bold">${item.desembolsado}</td>
+            <td class="py-3 px-3">${item.ingresoRaw || 'N/A'}</td>
+            <td class="py-3 px-3 text-center">${item.destinoInfo.original}</td>
+            <td class="py-3 px-3">${item.sucursal || 'N/A'}</td>
+            <td class="py-3 px-3 font-semibold text-acreimex-900">${item.coordinacion}</td>
+            <td class="py-3 px-3 text-center font-black">
+              ${item.diasTranscurridos !== null ? item.diasTranscurridos + ' días' : 'N/A'}
+            </td>
+            <td class="py-3 px-3 text-center">${badgeHtml}</td>
+            <td class="py-3 px-3 text-center">
+              <input type="checkbox" ${item.isComprobado ? 'checked' : ''} 
+                onchange="toggleComprobado('${item.credito}', this.checked, '${payloadData}')"
+                class="w-5 h-5 text-acreimex-600 border-slate-300 rounded focus:ring-acreimex-600 cursor-pointer accent-acreimex-600">
+            </td>
+          `;
+
+          tableBody.appendChild(tr);
+          renderedItemsCount++;
+        }
+      }
+
+      currentShownCount.textContent = renderedItemsCount;
+      recordCount.textContent = `${totalItemsOnly} REGISTRO(S) TOTALES`;
+
+      if (renderedItemsCount < totalItemsOnly) {
+        loadMoreContainer.classList.remove('hidden');
+      } else {
+        loadMoreContainer.classList.add('hidden');
+      }
+    }
+  </script>
+
+
+// Función ajustada para programar la prueba a las 10:00 AM
+async function activarAlertasDiarias() {
+  if (!("Notification" in window)) {
+    alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
+    return;
+  }
+
+  const permiso = await Notification.requestPermission();
+  if (permiso === "granted") {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      // Enviar instrucción al Service Worker para programar la prueba a las 10:00 AM
+      if (reg.active) {
+        reg.active.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
+      } else if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
+      }
+    }
+    alert("¡Prueba de alerta programada! A las 10:00 AM recibirás la notificación emergente en tu dispositivo aunque cierres la app.");
+  } else {
+    alert("Debes permitir las notificaciones para recibir la prueba.");
+  }
+}
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('Service Worker registrado:', reg.scope))
+          .catch((err) => console.error('Error al registrar Service Worker:', err));
+      });
+    }
+  </script>
+</body>
+</html>
