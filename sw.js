@@ -1,5 +1,5 @@
-// sw.js - Prueba de Alerta Programada a las 10:00 PM
-const CACHE_NAME = 'acreimex-pwa-v3';
+// sw.js - Prueba de Alerta Programada a las 12:00 PM
+const CACHE_NAME = 'acreimex-pwa-v4';
 const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
 const GID = "1166317926";
 
@@ -11,28 +11,32 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(clients.claim());
 });
 
-// Función ajustada para programar la prueba a las 10:00 AM
-async function activarAlertasDiarias() {
-  if (!("Notification" in window)) {
-    alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
-    return;
+// Recibir orden desde el HTML para programar la prueba
+self.addEventListener('message', (event) => {
+  if (event.data && (event.data.action === 'PROGRAMAR_PRUEBA_1200' || event.data.action === 'PROGRAMAR_PRUEBA_1000' || event.data.action === 'PROGRAMAR_PRUEBA_1230')) {
+    programarAlerta1200();
+  }
+});
+
+function programarAlerta1200() {
+  const ahora = new Date();
+  const objetivo = new Date();
+  
+  // Fijar hora objetivo: 12:00:00 PM de hoy
+  objetivo.setHours(12, 0, 0, 0);
+
+  let milisegundosFaltantes = objetivo.getTime() - ahora.getTime();
+
+  // Si ya pasaron las 12:00 PM, se dispara en 5 segundos como prueba
+  if (milisegundosFaltantes <= 0) {
+    milisegundosFaltantes = 5000;
   }
 
-  const permiso = await Notification.requestPermission();
-  if (permiso === "granted") {
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      // Enviar instrucción al Service Worker para programar la prueba a las 10:00 AM
-      if (reg.active) {
-        reg.active.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
-      } else if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
-      }
-    }
-    alert("¡Prueba de alerta programada! A las 10:00 AM recibirás la notificación emergente en tu dispositivo aunque cierres la app.");
-  } else {
-    alert("Debes permitir las notificaciones para recibir la prueba.");
-  }
+  console.log(`Prueba programada a las 12:00 PM. Se ejecutará en ${Math.round(milisegundosFaltantes / 1000)} segundos.`);
+
+  setTimeout(() => {
+    evaluarYNotificarCreditos();
+  }, milisegundosFaltantes);
 }
 
 // Consultar Google Sheets y lanzar la notificación emergente
@@ -75,16 +79,16 @@ async function evaluarYNotificarCreditos() {
     });
 
     // Lanza la alerta flotante del sistema
-    self.registration.showNotification("🚨 PRUEBA ACREIMEX (12:30 PM)", {
-      body: `¡Alerta de prueba de las 12:30 PM! Hay ${alertasContador} crédito(s) pendientes de comprobación (Día 10 o Día 25). Toca aquí para ingresar.`,
+    self.registration.showNotification("🚨 PRUEBA ACREIMEX (12:00 PM)", {
+      body: `¡Alerta de prueba de las 12:00 PM! Hay ${alertasContador} crédito(s) pendientes de comprobación (Día 10 o Día 25). Toca aquí para ingresar.`,
       icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
       badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-      tag: "alerta-prueba-1230",
+      tag: "alerta-prueba-1200",
       requireInteraction: true, // No desaparece hasta que la toques
       vibrate: [300, 100, 300, 100, 300]
     });
   } catch (err) {
-    console.error("Error al evaluar créditos a las 12:30 PM:", err);
+    console.error("Error al evaluar créditos a las 12:00 PM:", err);
   }
 }
 
