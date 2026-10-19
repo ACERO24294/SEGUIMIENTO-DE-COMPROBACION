@@ -313,7 +313,7 @@
       const horaActual = ahora.getHours();
 
       // Si la app está abierta dentro del rango de 9 a 10 AM, ejecuta el chequeo
-      if (horaActual >= 11 && horaActual < 12) {
+      if (horaActual >= 9 && horaActual < 10) {
         if (navigator.serviceWorker && navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
         }
