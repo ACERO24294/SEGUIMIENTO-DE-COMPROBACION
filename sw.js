@@ -1,5 +1,5 @@
-// sw.js - Prueba de Alerta Programada a las 12:00 PM
-const CACHE_NAME = 'acreimex-pwa-v4';
+// sw.js - Alertas automáticas programadas de 10:00 AM a 11:00 AM
+const CACHE_NAME = 'acreimex-pwa-v9';
 const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
 const GID = "1166317926";
 
@@ -11,32 +11,53 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(clients.claim());
 });
 
-// Recibir orden desde el HTML para programar la prueba
+// Recibir orden desde el HTML para programar o ejecutar
 self.addEventListener('message', (event) => {
-  if (event.data && (event.data.action === 'PROGRAMAR_PRUEBA_1200' || event.data.action === 'PROGRAMAR_PRUEBA_1000' || event.data.action === 'PROGRAMAR_PRUEBA_1230')) {
-    programarAlerta1200();
+  if (event.data && (
+    event.data.action === 'PROGRAMAR_PRUEBA_1000' || 
+    event.data.action === 'PROGRAMAR_PRUEBA_1200' || 
+    event.data.action === 'CHECK_NOW'
+  )) {
+    verificarYProgramarVentanaMatutina();
   }
 });
 
-function programarAlerta1200() {
+// Sincronización en segundo plano nativa de la PWA
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'check-creditos-vencidos') {
+    event.waitUntil(evaluarVentanaMatutinaYNotificar());
+  }
+});
+
+async function evaluarVentanaMatutinaYNotificar() {
+  const ahora = new Date();
+  const hora = ahora.getHours();
+
+  // Rango de 10:00 AM a 11:00 AM
+  if (hora >= 10 && hora < 11) {
+    await evaluarYNotificarCreditos();
+  }
+}
+
+function verificarYProgramarVentanaMatutina() {
   const ahora = new Date();
   const objetivo = new Date();
   
-  // Fijar hora objetivo: 12:00:00 PM de hoy
-  objetivo.setHours(12, 0, 0, 0);
+  // Fijar hora objetivo: 10:00:00 AM de hoy
+  objetivo.setHours(10, 0, 0, 0);
 
-  let milisegundosFaltantes = objetivo.getTime() - ahora.getTime();
+  let msFaltantes = objetivo.getTime() - ahora.getTime();
 
-  // Si ya pasaron las 12:00 PM, se dispara en 5 segundos como prueba
-  if (milisegundosFaltantes <= 0) {
-    milisegundosFaltantes = 5000;
+  // Si ya pasaron las 10:00 AM hoy, ejecuta a los 5 segundos para pruebas
+  if (msFaltantes <= 0) {
+    msFaltantes = 5000;
   }
 
-  console.log(`Prueba programada a las 12:00 PM. Se ejecutará en ${Math.round(milisegundosFaltantes / 1000)} segundos.`);
+  console.log(`Próxima alerta programada para las 10:00 AM. Se ejecutará en ${Math.round(msFaltantes / 1000)} segundos.`);
 
   setTimeout(() => {
     evaluarYNotificarCreditos();
-  }, milisegundosFaltantes);
+  }, msFaltantes);
 }
 
 // Consultar Google Sheets y lanzar la notificación emergente
@@ -78,17 +99,18 @@ async function evaluarYNotificarCreditos() {
       }
     });
 
-    // Lanza la alerta flotante del sistema
-    self.registration.showNotification("🚨 PRUEBA ACREIMEX (12:00 PM)", {
-      body: `¡Alerta de prueba de las 12:00 PM! Hay ${alertasContador} crédito(s) pendientes de comprobación (Día 10 o Día 25). Toca aquí para ingresar.`,
-      icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-      badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-      tag: "alerta-prueba-1200",
-      requireInteraction: true, // No desaparece hasta que la toques
-      vibrate: [300, 100, 300, 100, 300]
-    });
+    if (alertasContador > 0) {
+      self.registration.showNotification("⚠️ ACREIMEX: Créditos Por Comprobar (10:00 AM)", {
+        body: `Atención: Hay ${alertasContador} crédito(s) pendientes que alcanzaron su día de revisión (Día 10 / Día 25). Toca aquí para ingresar y revisar.`,
+        icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+        badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+        tag: "alerta-matutina-10am",
+        requireInteraction: true,
+        vibrate: [300, 100, 300, 100, 300]
+      });
+    }
   } catch (err) {
-    console.error("Error al evaluar créditos a las 12:00 PM:", err);
+    console.error("Error al evaluar créditos a las 10:00 AM:", err);
   }
 }
 
@@ -105,7 +127,7 @@ function parseFecha(strVal) {
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
-// Clic en la notificación abre la PWA
+// Clic en la notificación abre la PWA directamente
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
