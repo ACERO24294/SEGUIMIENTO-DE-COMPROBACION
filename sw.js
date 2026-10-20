@@ -1,5 +1,5 @@
 // sw.js - Alertas automáticas programadas de 10:00 AM a 11:00 AM
-const CACHE_NAME = 'acreimex-pwa-v9';
+const CACHE_NAME = 'acreimex-pwa-v10';
 const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
 const GID = "1166317926";
 
@@ -41,31 +41,22 @@ async function evaluarVentanaMatutinaYNotificar() {
 
 function verificarYProgramarVentanaMatutina() {
   const ahora = new Date();
-  const horaActual = ahora.getHours();
-  
   const objetivo = new Date();
+  
+  // Fijar hora objetivo: 10:00:00 AM de hoy
   objetivo.setHours(10, 0, 0, 0);
 
   let msFaltantes = objetivo.getTime() - ahora.getTime();
 
-  // Si estamos entre las 10:00 AM y las 11:00 AM (como a las 10:30 AM), dispara la prueba en 5 segundos
-  if (horaActual >= 10 && horaActual < 11) {
+  // Si ya pasaron las 10:00 AM hoy, ejecuta a los 5 segundos para pruebas
+  if (msFaltantes <= 0) {
     msFaltantes = 5000;
-  } else if (msFaltantes <= 0) {
-    // Si ya pasaron las 11:00 AM, se programa para las 10:00 AM de mañana
-    objetivo.setDate(objetivo.getDate() + 1);
-    msFaltantes = objetivo.getTime() - ahora.getTime();
   }
 
-  console.log(`Verificación de alertas lista. Ejecutando en ${Math.round(msFaltantes / 1000)} segundos.`);
+  console.log(`Próxima alerta programada para las 10:00 AM. Se ejecutará en ${Math.round(msFaltantes / 1000)} segundos.`);
 
   setTimeout(() => {
     evaluarYNotificarCreditos();
-    
-    // Repetición periódica cada 24 horas
-    setInterval(() => {
-      evaluarYNotificarCreditos();
-    }, 24 * 60 * 60 * 1000);
   }, msFaltantes);
 }
 
@@ -109,8 +100,11 @@ async function evaluarYNotificarCreditos() {
     });
 
     if (alertasContador > 0) {
-      self.registration.showNotification("⚠️ ACREIMEX: Créditos Por Comprobar (10:00 AM)", {
-        body: `Atención: Hay ${alertasContador} crédito(s) pendientes que alcanzaron su día de revisión (Día 10 / Día 25). Toca aquí para ingresar y revisar.`,
+      // Formatear el número con comas si es mayor a 999 (ej. 1,678)
+      const numeroFormateado = alertasContador.toLocaleString('es-MX');
+
+      self.registration.showNotification("⚠️ ACREIMEX: Comprobaciones Pendientes", {
+        body: `ATENCIÓN: Hay ${numeroFormateado} crédito(s) pendientes por comprobar que alcanzaron su día límite de revisión.\n\n👉 Toca aquí para ingresar y revisar.`,
         icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
         badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
         tag: "alerta-matutina-10am",
