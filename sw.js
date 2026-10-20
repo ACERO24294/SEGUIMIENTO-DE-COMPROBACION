@@ -41,22 +41,31 @@ async function evaluarVentanaMatutinaYNotificar() {
 
 function verificarYProgramarVentanaMatutina() {
   const ahora = new Date();
-  const objetivo = new Date();
+  const horaActual = ahora.getHours();
   
-  // Fijar hora objetivo: 10:00:00 AM de hoy
+  const objetivo = new Date();
   objetivo.setHours(10, 0, 0, 0);
 
   let msFaltantes = objetivo.getTime() - ahora.getTime();
 
-  // Si ya pasaron las 10:00 AM hoy, ejecuta a los 5 segundos para pruebas
-  if (msFaltantes <= 0) {
+  // Si estamos entre las 10:00 AM y las 11:00 AM (como a las 10:30 AM), dispara la prueba en 5 segundos
+  if (horaActual >= 10 && horaActual < 11) {
     msFaltantes = 5000;
+  } else if (msFaltantes <= 0) {
+    // Si ya pasaron las 11:00 AM, se programa para las 10:00 AM de mañana
+    objetivo.setDate(objetivo.getDate() + 1);
+    msFaltantes = objetivo.getTime() - ahora.getTime();
   }
 
-  console.log(`Próxima alerta programada para las 10:00 AM. Se ejecutará en ${Math.round(msFaltantes / 1000)} segundos.`);
+  console.log(`Verificación de alertas lista. Ejecutando en ${Math.round(msFaltantes / 1000)} segundos.`);
 
   setTimeout(() => {
     evaluarYNotificarCreditos();
+    
+    // Repetición periódica cada 24 horas
+    setInterval(() => {
+      evaluarYNotificarCreditos();
+    }, 24 * 60 * 60 * 1000);
   }, msFaltantes);
 }
 
