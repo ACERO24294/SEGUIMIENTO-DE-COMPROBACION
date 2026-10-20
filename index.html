@@ -281,49 +281,59 @@
       programarVerificacionMatutina();
     });
 
-    // ACTIVACIÓN DE ALERTAS EXTERNAS MATUTINAS (10:00 AM - 11:00 AM)
-    async function activarAlertasDiarias() {
-      if (!("Notification" in window)) {
-        alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
-        return;
-      }
 
-      const permiso = await Notification.requestPermission();
-      if (permiso === "granted") {
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if ('periodicSync' in reg) {
-            try {
-              await reg.periodicSync.register('check-creditos-vencidos', {
-                minInterval: 24 * 60 * 60 * 1000
-              });
-            } catch (e) {
-              console.log("Sincronización periódica registrada en modo estándar.");
-            }
-          }
+// ACTIVACIÓN DE ALERTAS EXTERNAS MATUTINAS (10:00 AM - 11:00 AM)
+async function activarAlertasDiarias() {
+  if (!("Notification" in window)) {
+    alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
+    return;
+  }
 
-          if (reg.active) {
-            reg.active.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
-          } else if (navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
-          }
-        }
-        alert("¡Alertas externas activadas! Recibirás avisos emergentes todas las mañanas entre 10:00 AM y 11:00 AM aunque la app esté cerrada.");
-      } else {
-        alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos externos.");
-      }
-    }
+  const permiso = await Notification.requestPermission();
+  if (permiso === "granted") {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      
+      // 1. LANZAR NOTIFICACIÓN DE CONFIRMACIÓN INMEDIATA
+      reg.showNotification("✅ Notificaciones Activadas - ACREIMEX", {
+        body: "¡Configuración exitosa! Recibirás avisos entre las 10:00 AM y 11:00 AM cuando existan créditos pendientes.",
+        icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+        badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+        tag: "confirmacion-activacion"
+      });
 
-    function programarVerificacionMatutina() {
-      const ahora = new Date();
-      const horaActual = ahora.getHours();
-
-      if (horaActual >= 10 && horaActual < 11) {
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
+      // 2. REGISTRAR O PROGRAMAR LA ALERTA DIARIA
+      if ('periodicSync' in reg) {
+        try {
+          await reg.periodicSync.register('check-creditos-vencidos', {
+            minInterval: 24 * 60 * 60 * 1000
+          });
+        } catch (e) {
+          console.log("Sincronización periódica registrada en modo estándar.");
         }
       }
+
+      if (reg.active) {
+        reg.active.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
+      } else if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
+      }
     }
+  } else {
+    alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos externos.");
+  }
+}
+
+function programarVerificacionMatutina() {
+  const ahora = new Date();
+  const horaActual = ahora.getHours();
+
+  if (horaActual >= 10 && horaActual < 11) {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
+    }
+  }
+}
 
     function getComprobados() {
       try { return JSON.parse(localStorage.getItem(COMPROBADOS_KEY) || '{}'); } catch (e) { return {}; }
