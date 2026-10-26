@@ -307,12 +307,12 @@
     return;
   }
 
-  // 3. Ventana emergente obligatoria para solicitar el número o nombre de la sucursal
+ // 3. Ventana emergente obligatoria para solicitar el número  de la sucursal
   const selectSucursal = document.getElementById('selectSucursal');
   const sucursalGuardada = localStorage.getItem('sucursal_notificaciones') || '';
 
   let sucursalIngresada = prompt(
-    "Escribe el número o nombre de tu sucursal para recibir ÚNICAMENTE las alertas de tu plaza (ejemplo: 01, OAXACA, ZAILA, etc.):",
+    "Escribe el número de tu sucursal para recibir ÚNICAMENTE los regustros de tu sucursal.",
     sucursalGuardada
   );
 
@@ -327,6 +327,7 @@
 
   // Guardar la preferencia en localStorage
   localStorage.setItem('sucursal_notificaciones', sucursalIngresada);
+
 
   // 4. Aplicar el filtro de sucursal en el selector principal y renderizar la tabla con los datos reales
   if (selectSucursal) {
