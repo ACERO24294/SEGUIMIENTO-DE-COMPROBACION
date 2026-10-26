@@ -1,148 +1,94 @@
-// sw.js - Alertas automáticas programadas de 10:00 AM a 11:00 AM
-const CACHE_NAME = 'acreimex-pwa-v10';
-const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
-const GID = "1166317926";
+const CACHE_NAME = 'acreimex-pwa-v2';
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  'https://cdn.tailwindcss.com',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+];
 
+// Instalación: Guarda en caché los archivos base
 self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
+  );
   self.skipWaiting();
 });
 
+// Activación: Limpia cachés antiguas
 self.addEventListener('activate', (e) => {
-  e.waitUntil(clients.claim());
-});
-
-// Recibir orden desde el HTML para programar o ejecutar
-self.addEventListener('message', (event) => {
-  if (event.data && (
-    event.data.action === 'PROGRAMAR_PRUEBA_1000' || 
-    event.data.action === 'PROGRAMAR_PRUEBA_1200' || 
-    event.data.action === 'CHECK_NOW'
-  )) {
-    verificarYProgramarVentanaMatutina();
-  }
-});
-
-// Sincronización en segundo plano nativa de la PWA
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'check-creditos-vencidos') {
-    event.waitUntil(evaluarVentanaMatutinaYNotificar());
-  }
-});
-
-async function evaluarVentanaMatutinaYNotificar() {
-  const ahora = new Date();
-  const hora = ahora.getHours();
-
-  // Rango de 10:00 AM a 11:00 AM
-  if (hora >= 10 && hora < 11) {
-    await evaluarYNotificarCreditos();
-  }
-}
-
-function verificarYProgramarVentanaMatutina() {
-  const ahora = new Date();
-  const objetivo = new Date();
-  
-  // Fijar hora objetivo: 10:00:00 AM de hoy
-  objetivo.setHours(10, 0, 0, 0);
-
-  let msFaltantes = objetivo.getTime() - ahora.getTime();
-
-  // Si ya pasaron las 10:00 AM hoy, ejecuta a los 5 segundos para pruebas
-  if (msFaltantes <= 0) {
-    msFaltantes = 5000;
-  }
-
-  console.log(`Próxima alerta programada para las 10:00 AM. Se ejecutará en ${Math.round(msFaltantes / 1000)} segundos.`);
-
-  setTimeout(() => {
-    evaluarYNotificarCreditos();
-  }, msFaltantes);
-}
-
-// Consultar Google Sheets y lanzar la notificación emergente
-async function evaluarYNotificarCreditos() {
-  try {
-    const response = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`);
-    const text = await response.text();
-    
-    const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
-    const data = JSON.parse(jsonString);
-    
-    const rows = data.table.rows;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let alertasContador = 0;
-
-    rows.forEach(r => {
-      if (!r.c) return;
-      
-      const ingresoCell = r.c[4] ? (r.c[4].f || r.c[4].v) : null;
-      const destinoRaw = r.c[31] ? String(r.c[31].v).toUpperCase() : (r.c[30] ? String(r.c[30].v).toUpperCase() : '');
-      
-      if (ingresoCell) {
-        const fechaIngreso = parseFecha(ingresoCell);
-        if (fechaIngreso) {
-          fechaIngreso.setHours(0, 0, 0, 0);
-          const diasTranscurridos = Math.floor((today - fechaIngreso) / (1000 * 60 * 60 * 24));
-          
-          let diaAlerta = 25;
-          if (destinoRaw.includes('PROMOCIÓN') || destinoRaw.includes('PROMOCION')) {
-            diaAlerta = 10;
-          }
-
-          if (diasTranscurridos >= diaAlerta) {
-            alertasContador++;
-          }
-        }
-      }
-    });
-
-    if (alertasContador > 0) {
-      // Formatear el número con comas si es mayor a 999 (ej. 1,678)
-      const numeroFormateado = alertasContador.toLocaleString('es-MX');
-
-      self.registration.showNotification("⚠️ ACREIMEX: Comprobaciones Pendientes", {
-        body: `ATENCIÓN: Hay ${numeroFormateado} crédito(s) pendientes por comprobar que alcanzaron su día límite de revisión.\n\n👉 Toca aquí para ingresar y revisar.`,
-        icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-        badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-        tag: "alerta-matutina-10am",
-        requireInteraction: true,
-        vibrate: [300, 100, 300, 100, 300]
-      });
-    }
-  } catch (err) {
-    console.error("Error al evaluar créditos a las 10:00 AM:", err);
-  }
-}
-
-function parseFecha(strVal) {
-  if (!strVal) return null;
-  const str = String(strVal).trim();
-  const gvizMatch = str.match(/Date\((\d+),(\d+),(\d+)\)/);
-  if (gvizMatch) return new Date(parseInt(gvizMatch[1]), parseInt(gvizMatch[2]), parseInt(gvizMatch[3]));
-  
-  const match = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-  if (match) return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
-  
-  const parsed = new Date(str);
-  return isNaN(parsed.getTime()) ? null : parsed;
-}
-
-// Clic en la notificación abre la PWA directamente
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) {
-        return clients.openWindow('./');
-      }
+  e.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      );
     })
   );
+  self.clients.claim();
 });
+
+// Estrategia Network First (intenta red, si falla usa caché)
+self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET' || e.request.url.includes('script.google.com')) {
+    return;
+  }
+
+  e.respondWith(
+    fetch(e.request)
+      .then((networkResponse) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          cache.put(e.request, networkResponse.clone());
+          return networkResponse;
+        });
+      })
+      .catch(() => caches.match(e.request))
+  );
+});
+
+// Escuchar mensajes enviados desde el archivo HTML
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.action === 'PROGRAMAR_ALERTAS') {
+    verificarYProgramarAlerta();
+  }
+});
+
+function verificarYProgramarAlerta() {
+  const ahora = new Date();
+  const horaActual = ahora.getHours();
+
+  // Si ya pasaron las 10:00 AM de hoy
+  if (horaActual >= 10) {
+    // Lanzar notificación 10 segundos después de otorgar permisos
+    setTimeout(() => {
+      mostrarNotificacionPush(
+        "⚠️ Atención: Revisión de Créditos Pendientes",
+        "Ya han pasado las 10:00 AM. Revisa los créditos de Solidarios vigentes que requieren comprobación."
+      );
+    }, 10000);
+  } else {
+    // Calcular cuántos milisegundos faltan para las 10:00 AM de hoy
+    const objetivo = new Date();
+    objetivo.setHours(10, 0, 0, 0);
+    const tiempoRestante = objetivo.getTime() - ahora.getTime();
+
+    setTimeout(() => {
+      mostrarNotificacionPush(
+        "🔔 Alerta Automática 10:00 AM - ACREIMEX",
+        "Es hora de revisar las comprobaciones de créditos pendientes en Solidarios."
+      );
+    }, tiempoRestante);
+  }
+}
+
+function mostrarNotificacionPush(titulo, cuerpo) {
+  self.registration.showNotification(titulo, {
+    body: cuerpo,
+    icon: 'https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC',
+    badge: 'https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC',
+    tag: 'alerta-diaria-acreimex',
+    renotify: true
+  });
+}

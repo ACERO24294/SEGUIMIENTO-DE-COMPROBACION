@@ -2,18 +2,22 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <!-- Meta etiquetas para PWA / Móvil -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0056b3">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ACREIMEX">
 
+  <!-- Vinculación del Manifest -->
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC">
 
   <title>Control de Comprobaciones - ACREIMEX</title>
   
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <script>
@@ -93,7 +97,7 @@
       <!-- BOTONES DE ACCIÓN -->
       <div class="lg:col-span-4 w-full flex gap-2">
         <button id="btnNotificaciones" class="w-1/2 px-2 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] rounded-lg transition tracking-wider flex items-center justify-center gap-1 shadow-md uppercase">
-          <i class="fa-solid fa-bell"></i> RECIBIR RECORDATORIOS
+          <i class="fa-solid fa-bell"></i> RECORDATORIOS
         </button>
 
         <button id="btnSync" class="w-1/2 px-2 py-3 bg-acreimex-600 hover:bg-acreimex-800 text-white font-extrabold text-[11px] rounded-lg transition tracking-wider flex items-center justify-center gap-1 shadow-md uppercase">
@@ -180,7 +184,7 @@
     <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-3 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
         <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
-          <i class="fa-solid fa-table text-acreimex-600"></i> Registros del Sistema
+          <i class="fa-solid fa-table text-acreimex-600"></i> Registros Agrupados por Destino
         </span>
         <span id="recordCount" class="text-xs font-extrabold bg-acreimex-100 text-acreimex-900 px-3 py-1 rounded-full">
           Cargando datos...
@@ -192,13 +196,13 @@
           <thead class="bg-acreimex-900 text-white font-black uppercase tracking-wider border-b border-slate-300">
             <tr>
               <th class="py-3 px-3">CRÉDITO / GRUPO</th>
-              <th class="py-3 px-3">NOMBRE</th>
+              <th class="py-3 px-3">SOCIO</th>
               <th class="py-3 px-3">PRODUCTO</th>
               <th class="py-3 px-3">DESEMBOLSADO</th>
-              <th class="py-3 px-3">FECHA DE INGREGO</th>
+              <th class="py-3 px-3">FECHA DE INGRESO</th>
               <th class="py-3 px-3 text-center">DESTINO</th>
               <th class="py-3 px-3">SUCURSAL</th>
-              <th class="py-3 px-3">COORDINACION</th>
+              <th class="py-3 px-3">COORDINACIÓN</th>
               <th class="py-3 px-3 text-center">DÍAS TRANSCURRIDOS</th>
               <th class="py-3 px-3 text-center">ESTATUS ALERTA</th>
               <th class="py-3 px-3 text-center">COMPROBADO</th>
@@ -215,7 +219,7 @@
         </table>
       </div>
 
-      <!-- BOTÓN DE PAGINACIÓN -->
+      <!-- BOTÓN DE PAGINACIÓN DE 5,000 EN 5,000 -->
       <div id="loadMoreContainer" class="hidden p-4 bg-slate-50 border-t border-slate-200 text-center">
         <button id="btnLoadMore" class="px-6 py-2.5 bg-acreimex-600 hover:bg-acreimex-800 text-white font-black text-xs rounded-lg transition shadow">
           CARGAR 5,000 REGISTROS MÁS (Mostrando <span id="currentShownCount">0</span> de <span id="totalFilteredCount">0</span>)
@@ -233,12 +237,16 @@
     let visibleLimit = 5000;      
     let selectedSubDestinos = new Set();
 
-    const MOSTRAR_OTRAS_COORDINACIONES = false;
+    // =========================================================================
+    // CONFIGURACIÓN DE ALERTAS Y COORDINACIONES
+    // =========================================================================
+    const INCLUIR_OTRAS_EN_ALERTAS = false; 
+
     const COMPROBADOS_KEY = "pwa_comprobaciones_confirmadas";
     const SHEET_ID = "181BS2rGdsPnDLOBob3sZ5DghSTo4IQeF";
     const GID = "1166317926";
 
-    const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO", "OTROS"];
+    const GRUPOS_BASE = ["COMERCIAL", "PROMOCIÓN ESCOLAR", "AGUA Y SANEAMIENTO"];
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('selectSucursal').addEventListener('change', () => {
@@ -248,7 +256,7 @@
       });
 
       document.getElementById('btnSync').addEventListener('click', loadDataWithComprobaciones);
-      
+
       const btnNotif = document.getElementById('btnNotificaciones');
       if (btnNotif) {
         btnNotif.addEventListener('click', activarAlertasDiarias);
@@ -278,12 +286,9 @@
       });
 
       loadDataWithComprobaciones();
-      programarVerificacionMatutina();
     });
 
-
-// ACTIVACIÓN DE ALERTAS EXTERNAS MATUTINAS (10:00 AM - 11:00 AM)
-async function activarAlertasDiarias() {
+   async function activarAlertasDiarias() {
   if (!("Notification" in window)) {
     alert("Tu dispositivo o navegador no admite notificaciones emergentes.");
     return;
@@ -294,44 +299,50 @@ async function activarAlertasDiarias() {
     if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.ready;
       
-      // 1. LANZAR NOTIFICACIÓN DE CONFIRMACIÓN INMEDIATA
-      reg.showNotification("✅ Notificaciones Activadas - ACREIMEX", {
-        body: "¡Configuración exitosa! Recibirás avisos entre las 10:00 AM y 11:00 AM cuando existan créditos pendientes.",
+      // Obtener el valor de la sucursal seleccionada en el select
+      const selectSucursal = document.getElementById('selectSucursal');
+      const sucursalSeleccionada = selectSucursal ? selectSucursal.value : 'TODOS';
+      const textoSucursal = sucursalSeleccionada === 'TODOS' ? 'TODAS LAS SUCURSALES' : `SUCURSAL ${sucursalSeleccionada}`;
+
+      // Contar los créditos pendientes en la lista filtrada actualmente
+      let creditosPendientes = 0;
+      if (typeof filteredItemsGlobal !== 'undefined' && Array.isArray(filteredItemsGlobal)) {
+        creditosPendientes = filteredItemsGlobal.filter(item => {
+          if (item.type === 'item' && item.data) {
+            return !item.data.isComprobado;
+          }
+          return false;
+        }).length;
+      }
+
+      // Definir los mensajes incluyendo la sucursal activa
+      const ahora = new Date();
+      let textoCuerpo = `Configuración activa para ${textoSucursal}. Tienes ${creditosPendientes} créditos pendientes de comprobar. Recibirás avisos a las 10:00 AM.`;
+      
+      if (ahora.getHours() >= 10) {
+        textoCuerpo = `Configuración activa para ${textoSucursal}. Ya pasaron las 10:00 AM. Tienes ${creditosPendientes} créditos pendientes.`;
+        
+        // Lanzar la notificación de prueba 10 segundos después con la sucursal y el número exacto
+        setTimeout(() => {
+          reg.showNotification(`⚠️ Alerta - ${textoSucursal}`, {
+            body: `Actualmente cuentas con ${creditosPendientes} créditos de Solidarios pendientes de comprobación en ${textoSucursal}.`,
+            icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+            badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+            tag: "alerta-pendientes-sucursal"
+          });
+        }, 10000);
+      }
+
+      // Notificación de confirmación inicial
+      reg.showNotification(`✅ Notificaciones Activadas (${textoSucursal})`, {
+        body: textoCuerpo,
         icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
         badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
         tag: "confirmacion-activacion"
       });
-
-      // 2. REGISTRAR O PROGRAMAR LA ALERTA DIARIA
-      if ('periodicSync' in reg) {
-        try {
-          await reg.periodicSync.register('check-creditos-vencidos', {
-            minInterval: 24 * 60 * 60 * 1000
-          });
-        } catch (e) {
-          console.log("Sincronización periódica registrada en modo estándar.");
-        }
-      }
-
-      if (reg.active) {
-        reg.active.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
-      } else if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ action: 'PROGRAMAR_PRUEBA_1000' });
-      }
     }
   } else {
-    alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos externos.");
-  }
-}
-
-function programarVerificacionMatutina() {
-  const ahora = new Date();
-  const horaActual = ahora.getHours();
-
-  if (horaActual >= 10 && horaActual < 11) {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ action: 'CHECK_NOW' });
-    }
+    alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos.");
   }
 }
 
@@ -349,7 +360,7 @@ function programarVerificacionMatutina() {
         const res = await fetch(APPS_SCRIPT_URL);
         const json = await res.json();
         if (json && Array.isArray(json.comprobados)) {
-          const local = getComprobados();
+          const local = {};
           json.comprobados.forEach(credito => { local[credito] = true; });
           saveComprobados(local);
         }
@@ -460,6 +471,11 @@ function programarVerificacionMatutina() {
         comprobados[credito] = true;
         saveComprobados(comprobados);
 
+        const chk = document.querySelector(`input[data-credito="${credito}"]`);
+        if (chk) {
+          chk.disabled = true;
+        }
+
         if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("TU_SCRIPT_ID_AQUI")) {
           fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -468,9 +484,6 @@ function programarVerificacionMatutina() {
             body: JSON.stringify(rowData)
           }).catch(err => console.error("Error al registrar comprobación:", err));
         }
-      } else {
-        delete comprobados[credito];
-        saveComprobados(comprobados);
       }
 
       filterAndRender();
@@ -562,11 +575,7 @@ function programarVerificacionMatutina() {
       const currentSucursal = selectSucursal.value;
       selectSucursal.innerHTML = '<option value="TODOS">-- TODAS --</option>';
 
-      const sucursales = [...new Set(data.map(i => {
-        const val = i.SUCURSAL || i["SUCURSAL"] || i.COL_6 || i.COL_7 || '';
-        return String(val).trim();
-      }).filter(Boolean))].sort();
-
+      const sucursales = [...new Set(data.map(i => String(i.SUCURSAL || '').trim()).filter(Boolean))].sort();
       sucursales.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s;
@@ -589,20 +598,13 @@ function programarVerificacionMatutina() {
 
       let filteredData = data;
       if (selectedSucursal !== 'TODOS') {
-        filteredData = filteredData.filter(row => {
-          const suc = String(row.SUCURSAL || row["SUCURSAL"] || row.COL_6 || row.COL_7 || '').trim();
-          return suc === selectedSucursal;
-        });
+        filteredData = filteredData.filter(row => String(row.SUCURSAL || '').trim() === selectedSucursal);
       }
 
       const otrosDestinosMap = new Map();
       filteredData.forEach(row => {
-        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || row.COL_7 || row.COL_8 || '').trim().toUpperCase();
-        const esSolidarios = coordinacion.includes('SOLIDARIO');
-        if (!esSolidarios && !MOSTRAR_OTRAS_COORDINACIONES) return;
-
         const info = getDestinoInfo(row);
-        if (info.grupo === 'OTROS' && info.original && info.original !== 'N/A') {
+        if (info.original && info.original !== 'N/A') {
           if (!otrosDestinosMap.has(info.original)) {
             otrosDestinosMap.set(info.original, info.original);
           }
@@ -641,26 +643,36 @@ function programarVerificacionMatutina() {
       });
 
       excelData.forEach((row, index) => {
-        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || row.COL_7 || row.COL_8 || '').trim();
-        const esCoordinacionSolidarios = coordinacion.toUpperCase().includes('SOLIDARIO');
+        // 1. FILTRO POR ESTADO CONTABLE VIGENTE
+        const estadoContable = String(
+          row["ESTADO_CONTABLE"] || row["ESTADO CONTABLE"] || row.ESTADO_CONTABLE || row.ESTADO || ''
+        ).trim().toUpperCase();
 
-        if (!esCoordinacionSolidarios && !MOSTRAR_OTRAS_COORDINACIONES) return;
+        if (!estadoContable.includes('VIGENTE')) {
+          return;
+        }
 
-        const sucursal = String(row.SUCURSAL || row["SUCURSAL"] || row.COL_6 || row.COL_7 || '').trim();
+        // 2. FILTRO EXCLUSIVO POR COORDINACIÓN DE SOLIDARIOS
+        const coordinacion = String(row.COORDINACION || row["COORDINACIÓN"] || '').trim();
+        if (!coordinacion.toUpperCase().includes('SOLIDARIO')) {
+          return;
+        }
+
+        const destinoInfo = getDestinoInfo(row);
+
+        const sucursal = String(row.SUCURSAL || '').trim();
         if (selectedSucursal !== 'TODOS' && sucursal !== selectedSucursal) return;
 
         const rawCredito = row.CREDITO || row["CRÉDITO"] || row.NOMBRE_GRUPO || row.GRUPO || '';
         const credito = rawCredito !== '' ? String(rawCredito).trim() : `Reg-${index + 1}`;
 
-        const nombre = row.NOMBRE || row.CLIENTE || '-';
+        const socio = row.SOCIO || row.socio || row["NÚMERO DE SOCIO"] || row["NUMERO DE SOCIO"] || row.CLIENTE || '-';
         const producto = row.PRODUCTO || '-';
         const desembolsadoVal = row.DESEMBOLSADO || row.MONTO || '';
         const desembolsadoMonto = parseMonto(desembolsadoVal);
         const desembolsado = formatMoneda(desembolsadoVal);
         
-        const ingresoRaw = row.COL_4 || row["FECHA DE INGREGO"] || row["FECHA DE INGRESO"] || row.INGRESO || row.FECHA_INGRESO || row.FECHA || '';
-
-        const destinoInfo = getDestinoInfo(row);
+        const ingresoRaw = row.COL_3 || row["FECHA DE INGREGO"] || row["FECHA DE INGRESO"] || row.INGRESO || row.FECHA_INGRESO || row.FECHA || '';
 
         const fechaIngreso = parseExcelDate(ingresoRaw);
         let diasIngreso = null;
@@ -671,7 +683,7 @@ function programarVerificacionMatutina() {
 
         const diasTranscurridos = diasIngreso;
 
-        if (destinoInfo.grupo === 'COMERCIAL' && esCoordinacionSolidarios) {
+        if (destinoInfo.grupo === 'COMERCIAL') {
           const cumpleMonto = desembolsadoMonto >= 50000;
           const cumpleAntiguedad = diasIngreso !== null && diasIngreso >= 0 && diasIngreso <= 365;
           if (!cumpleMonto || !cumpleAntiguedad) return;
@@ -683,40 +695,35 @@ function programarVerificacionMatutina() {
 
         if (esAlertaAviso || esPlazoVencido) {
           pendingAlerts.push({ 
-            credito, nombre, dias: diasTranscurridos, sucursal, destino: destinoInfo.original, coordinacion 
+            credito, socio, dias: diasTranscurridos, sucursal, destino: destinoInfo.original, coordinacion 
           });
         }
 
-        // ASIGNACIÓN DE CARPETAS
         let targetGrupo;
         if (selectedSubDestinos.has(destinoInfo.original)) {
           targetGrupo = destinoInfo.original;
-        } else if (GRUPOS_BASE.includes(destinoInfo.grupo) && destinoInfo.grupo !== 'OTROS') {
-          targetGrupo = destinoInfo.grupo;
         } else {
-          targetGrupo = "OTROS";
+          if (GRUPOS_BASE.includes(destinoInfo.grupo)) {
+            targetGrupo = destinoInfo.grupo;
+          } else {
+            targetGrupo = "OTROS";
+          }
         }
 
         if (!groupedData[targetGrupo]) groupedData[targetGrupo] = [];
 
         groupedData[targetGrupo].push({
-          credito, nombre, producto, desembolsado, ingresoRaw, destinoInfo, sucursal,
+          credito, socio, producto, desembolsado, ingresoRaw, destinoInfo, sucursal,
           coordinacion: coordinacion || 'N/A', diasTranscurridos, isComprobado, esAlertaAviso, esPlazoVencido
         });
       });
 
-      // ORDEN REQUERIDO:
-      // 1. COMERCIAL
-      // 2. PROMOCIÓN ESCOLAR
-      // 3. AGUA Y SANEAMIENTO
-      // 4. SUB-DESTINOS FILTRADOS
-      // 5. OTROS DESTINOS (AL FINAL)
       const carpetasAOrden = [
         "COMERCIAL",
         "PROMOCIÓN ESCOLAR",
         "AGUA Y SANEAMIENTO",
-        ...Array.from(selectedSubDestinos),
-        "OTROS"
+        "OTROS",
+        ...Array.from(selectedSubDestinos)
       ];
 
       carpetasAOrden.forEach(grupo => {
@@ -736,7 +743,7 @@ function programarVerificacionMatutina() {
         alertList.innerHTML = '';
         pendingAlerts.forEach(item => {
           const li = document.createElement('li');
-          li.innerHTML = `<strong>${item.nombre}</strong> (${item.credito}) - Coord: ${item.coordinacion} - Sucursal ${item.sucursal} - Destino: ${item.destino} - <span class="underline">${item.dias} días transcurridos</span>`;
+          li.innerHTML = `<strong>${item.socio}</strong> (${item.credito}) - Coord: ${item.coordinacion} - Sucursal ${item.sucursal} - Destino: ${item.destino} - <span class="underline">${item.dias} días transcurridos</span>`;
           alertList.appendChild(li);
         });
       } else {
@@ -834,7 +841,7 @@ function programarVerificacionMatutina() {
 
           const payloadData = encodeURIComponent(JSON.stringify({
             credito: item.credito,
-            nombre: item.nombre,
+            socio: item.socio,
             producto: item.producto,
             desembolsado: item.desembolsado,
             ingreso: item.ingresoRaw,
@@ -846,7 +853,7 @@ function programarVerificacionMatutina() {
 
           tr.innerHTML = `
             <td class="py-3 px-3 font-mono">${item.credito}</td>
-            <td class="py-3 px-3">${item.nombre}</td>
+            <td class="py-3 px-3">${item.socio}</td>
             <td class="py-3 px-3">${item.producto}</td>
             <td class="py-3 px-3 font-mono font-bold">${item.desembolsado}</td>
             <td class="py-3 px-3">${item.ingresoRaw || 'N/A'}</td>
@@ -858,9 +865,9 @@ function programarVerificacionMatutina() {
             </td>
             <td class="py-3 px-3 text-center">${badgeHtml}</td>
             <td class="py-3 px-3 text-center">
-              <input type="checkbox" ${item.isComprobado ? 'checked' : ''} 
+              <input type="checkbox" data-credito="${item.credito}" ${item.isComprobado ? 'checked disabled' : ''} 
                 onchange="toggleComprobado('${item.credito}', this.checked, '${payloadData}')"
-                class="w-5 h-5 text-acreimex-600 border-slate-300 rounded focus:ring-acreimex-600 cursor-pointer accent-acreimex-600">
+                class="w-5 h-5 text-acreimex-600 border-slate-300 rounded focus:ring-acreimex-600 cursor-pointer accent-acreimex-600 disabled:opacity-50 disabled:cursor-not-allowed">
             </td>
           `;
 
@@ -879,11 +886,12 @@ function programarVerificacionMatutina() {
       }
     }
   </script>
+
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('Service Worker registrado:', reg.scope))
+          .then((reg) => console.log('Service Worker registrado con éxito:', reg.scope))
           .catch((err) => console.error('Error al registrar Service Worker:', err));
       });
     }
