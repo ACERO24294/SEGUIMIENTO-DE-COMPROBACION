@@ -294,55 +294,101 @@
     return;
   }
 
+  // 1. Verificar si los datos aún se están cargando desde Google Sheets
+  if (!excelData || excelData.length === 0) {
+    alert("Los datos aún se están cargando desde la base de datos. Por favor, espera unos segundos a que finalice la carga e intenta de nuevo.");
+    return;
+  }
+
+  // 2. Solicitar permisos de notificación al navegador
   const permiso = await Notification.requestPermission();
-  if (permiso === "granted") {
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      
-      // Obtener el valor de la sucursal seleccionada en el select
-      const selectSucursal = document.getElementById('selectSucursal');
-      const sucursalSeleccionada = selectSucursal ? selectSucursal.value : 'TODOS';
-      const textoSucursal = sucursalSeleccionada === 'TODOS' ? 'TODAS LAS SUCURSALES' : `SUCURSAL ${sucursalSeleccionada}`;
+  if (permiso !== "granted") {
+    alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos.");
+    return;
+  }
 
-      // Contar los créditos pendientes en la lista filtrada actualmente
-      let creditosPendientes = 0;
-      if (typeof filteredItemsGlobal !== 'undefined' && Array.isArray(filteredItemsGlobal)) {
-        creditosPendientes = filteredItemsGlobal.filter(item => {
-          if (item.type === 'item' && item.data) {
-            return !item.data.isComprobado;
-          }
-          return false;
-        }).length;
-      }
+  // 3. Ventana emergente obligatoria para solicitar el número o nombre de la sucursal
+  const selectSucursal = document.getElementById('selectSucursal');
+  const sucursalGuardada = localStorage.getItem('sucursal_notificaciones') || '';
 
-      // Definir los mensajes incluyendo la sucursal activa
-      const ahora = new Date();
-      let textoCuerpo = `Configuración activa para ${textoSucursal}. Tienes ${creditosPendientes} créditos pendientes de comprobar. Recibirás avisos a las 10:00 AM.`;
-      
-      if (ahora.getHours() >= 10) {
-        textoCuerpo = `Configuración activa para ${textoSucursal}. Ya pasaron las 10:00 AM. Tienes ${creditosPendientes} créditos pendientes.`;
-        
-        // Lanzar la notificación de prueba 10 segundos después con la sucursal y el número exacto
-        setTimeout(() => {
-          reg.showNotification(`⚠️ Alerta - ${textoSucursal}`, {
-            body: `Actualmente cuentas con ${creditosPendientes} créditos de Solidarios pendientes de comprobación en ${textoSucursal}.`,
-            icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-            badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-            tag: "alerta-pendientes-sucursal"
-          });
-        }, 10000);
-      }
+  let sucursalIngresada = prompt(
+    "Escribe el número o nombre de tu sucursal para recibir ÚNICAMENTE las alertas de tu plaza (ejemplo: 01, OAXACA, ZAILA, etc.):",
+    sucursalGuardada
+  );
 
-      // Notificación de confirmación inicial
-      reg.showNotification(`✅ Notificaciones Activadas (${textoSucursal})`, {
-        body: textoCuerpo,
-        icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-        badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
-        tag: "confirmacion-activacion"
+  if (sucursalIngresada === null) return; // Si el usuario presiona Cancelar
+
+  sucursalIngresada = sucursalIngresada.trim().toUpperCase();
+
+  if (!sucursalIngresada) {
+    alert("Debes ingresar una sucursal válida para activar los recordatorios.");
+    return;
+  }
+
+  // Guardar la preferencia en localStorage
+  localStorage.setItem('sucursal_notificaciones', sucursalIngresada);
+
+  // 4. Aplicar el filtro de sucursal en el selector principal y renderizar la tabla con los datos reales
+  if (selectSucursal) {
+    // Buscar si existe una coincidencia exacta o parcial en las opciones del selector
+    let opcionEncontrada = Array.from(selectSucursal.options).find(opt => 
+      opt.value.toUpperCase() === sucursalIngresada || opt.text.toUpperCase().includes(sucursalIngresada)
+    );
+
+    if (opcionEncontrada) {
+      selectSucursal.value = opcionEncontrada.value;
+    } else {
+      // Si la sucursal escrita no existe exactamente en el select, agrega una opción temporal
+      const newOpt = document.createElement('option');
+      newOpt.value = sucursalIngresada;
+      newOpt.textContent = `SUCURSAL ${sucursalIngresada}`;
+      selectSucursal.appendChild(newOpt);
+      selectSucursal.value = sucursalIngresada;
+    }
+
+    // Actualizar la tabla con la sucursal seleccionada
+    filterAndRender();
+  }
+
+  if ('serviceWorker' in navigator) {
+    const reg = await navigator.serviceWorker.ready;
+    const textoSucursal = `SUCURSAL ${sucursalIngresada}`;
+
+    // 5. Enviar la sucursal configurada al Service Worker
+    if (reg.active) {
+      reg.active.postMessage({ 
+        action: 'PROGRAMAR_ALERTAS', 
+        sucursal: sucursalIngresada 
       });
     }
-  } else {
-    alert("Debes permitir las notificaciones en los ajustes del sistema para recibir avisos.");
+
+    // 6. Confirmación inmediata en pantalla
+    reg.showNotification(`✅ Recordatorio Activado (${textoSucursal})`, {
+      body: `Configuración correcta para ${textoSucursal}. Recibirás el resumen diario a las 10:00 AM.`,
+      icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+      badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+      tag: "confirmacion-activacion"
+    });
+
+    // 7. Si ya pasaron las 10:00 AM, esperar 1 MINUTO (60,000 ms) antes de consultar el conteo real y notificar
+    const ahora = new Date();
+    if (ahora.getHours() >= 10) {
+      setTimeout(() => {
+        // Recalcular conteo exacto tras la espera de 1 minuto
+        let creditosPendientes = 0;
+        if (typeof filteredItemsGlobal !== 'undefined' && Array.isArray(filteredItemsGlobal)) {
+          creditosPendientes = filteredItemsGlobal.filter(item => item.type === 'item' && item.data && !item.data.isComprobado).length;
+        }
+
+        reg.showNotification(`⚠️ Alerta - ${textoSucursal}`, {
+          body: `Actualmente cuentas con ${creditosPendientes} créditos de Solidarios pendientes de comprobación en ${textoSucursal}.`,
+          icon: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+          badge: "https://lh3.googleusercontent.com/d/1wNGmdjjRdJsbZfCh_c86XwbQItnNk5zC",
+          tag: "alerta-pendientes-sucursal",
+          renotify: true
+        });
+      }, 60000); // Espera exacta de 1 minuto (60,000 milisegundos)
+    }
   }
 }
 
